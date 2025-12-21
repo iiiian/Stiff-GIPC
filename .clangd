@@ -1,0 +1,5 @@
+CompileFlags:
+  Add:
+    - "-I/usr/local/cuda-13/include"
+    - "-isystem"
+    - "/usr/include/eigen3"
