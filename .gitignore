@@ -1,3 +1,5 @@
 .vs*
 build*
 Output/*
+.cache/clangd/index
+compile_commands.json
