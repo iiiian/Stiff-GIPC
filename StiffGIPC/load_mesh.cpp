@@ -1,5 +1,5 @@
 //
-// 
+//
 // GIPC
 //
 // created by Kemeng Huang on 2022/12/01
@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include "load_mesh.h"
+#include "msh_reader.hpp"
 #include <unordered_map>
 #include <fstream>
 #include <set>
@@ -432,10 +433,10 @@ tetrahedra_obj::tetrahedra_obj()
 
 bool tetrahedra_obj::load_tetrahedraMesh(const std::string& filename,
                                          double             scale,
-                                       /*  double             youngth_module,*/
-                                         double3            position_offset,
-                                         gipc::BodyType     body_type,
-                                         BodyBoundaryType   body_boundary_type)
+                                         /*  double             youngth_module,*/
+                                         double3          position_offset,
+                                         gipc::BodyType   body_type,
+                                         BodyBoundaryType body_boundary_type)
 {
     Eigen::Matrix4d transform   = Eigen::Matrix4d::Identity();
     transform.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity() * scale;
@@ -466,7 +467,7 @@ bool tetrahedra_obj::load_parts(const std::string& filename)
 
     ifs.close();
 
-    if(partId.size() != vertexes.size()-abd_vertexOffset)
+    if(partId.size() != vertexes.size() - abd_vertexOffset)
     {
         partId.clear();
         fprintf(stderr,
@@ -486,133 +487,73 @@ bool tetrahedra_obj::load_tetrahedraMesh(const std::string&     filename,
 {
     begin_load_body(filename, body_type, body_boundary_type);
 
-    ifstream ifs(filename);
-    if(!ifs)
-    {
+    Eigen::MatrixXd V;
+    Eigen::MatrixXi T;
+    gipc::io::MshReader::load_tet_mesh(filename, V, T);
 
-        fprintf(stderr, "unable to read file %s\n", filename.c_str());
-        ifs.close();
-        exit(-1);
-        return false;
+    const int nodeNumber    = static_cast<int>(V.rows());
+    const int elementNumber = static_cast<int>(T.rows());
+
+    vertexNum += nodeNumber;
+    tetrahedraNum += elementNumber;
+
+    set_body_point_num(body_type, nodeNumber);
+
+    if(body_type == gipc::BodyType::ABD)
+    {
+        abd_vertexOffset += nodeNumber;
     }
 
-    double x, y, z;
-    int    index0, index1, index2, index3;
-    string line          = "";
-    int    nodeNumber    = 0;
-    int    elementNumber = 0;
-    while(getline(ifs, line))
+    if(body_type == gipc::BodyType::ABD)
     {
-        if(line.length() <= 1)
-            continue;
-        if(line.substr(1, 5) == "Nodes")
-        {
-            getline(ifs, line);
-            nodeNumber = atoi(line.c_str());
-            vertexNum += nodeNumber;
-
-            set_body_point_num(body_type, nodeNumber);
-
-            if(body_type == gipc::BodyType::ABD)
-            {
-                abd_vertexOffset += nodeNumber;
-            }
-
-            double xmin = 1e32, ymin = 1e32, zmin = 1e32;
-            double xmax = -1e32, ymax = -1e32, zmax = -1e32;
-            for(int i = 0; i < nodeNumber; i++)
-            {
-                getline(ifs, line);
-                vector<std::string> nodePos;
-                std::string         spacer = " ";
-                split(line, nodePos, spacer);
-                x                          = atof(nodePos[1].c_str());
-                y                          = atof(nodePos[2].c_str());
-                z                          = atof(nodePos[3].c_str());
-                double3         d_velocity = make_double3(0, 0, 0);
-                Eigen::Vector4d V = transform * Eigen::Vector4d(x, y, z, 1);
-                double3         vertex = make_double3(V(0), V(1), V(2));
-                //Matrix3d Constraint; Constraint.setIdentity();
-                //Vector3d force = Vector3d(0, 0, 0);
-                double3 velocity     = make_double3(0, 0, 0);
-                double3 d_pos        = make_double3(0, 0, 0);
-                double  mass         = 0;
-                int     boundaryType = 0;
-                boundaryTypies.push_back(boundaryType);
-                vertexes.push_back(vertex);
-                //forces.push_back(force);
-                velocities.push_back(velocity);
-                
-                //Constraints.push_back(Constraint);
-                //isNBC.push_back(false);
-                //d_velocities.push_back(d_velocity);
-                masses.push_back(mass);
-                //isDelete.push_back(false);
-                //d_positions.push_back(d_pos);
-                //externalForce.push_back(Vector3d(0, 0, 0));
-
-                __GEIGEN__::Matrix3x3d constraint;
-                __GEIGEN__::__set_Mat_val(constraint, 1, 0, 0, 0, 1, 0, 0, 0, 1);
-
-                constraints.push_back(constraint);
-
-                if(xmin > vertex.x)
-                    xmin = vertex.x;
-                if(ymin > vertex.y)
-                    ymin = vertex.y;
-                if(zmin > vertex.z)
-                    zmin = vertex.z;
-                if(xmax < vertex.x)
-                    xmax = vertex.x;
-                if(ymax < vertex.y)
-                    ymax = vertex.y;
-                if(zmax < vertex.z)
-                    zmax = vertex.z;
-            }
-            minTConer = make_double3(xmin, ymin, zmin);
-            maxTConer = make_double3(xmax, ymax, zmax);
-        }
-
-        if(line.substr(1, 8) == "Elements")
-        {
-            getline(ifs, line);
-            elementNumber = atoi(line.c_str());
-            tetrahedraNum += elementNumber;
-
-            if(body_type == gipc::BodyType::ABD)
-            {
-                abd_tetOffset += elementNumber;
-                youngth_module = 1e7;
-            }
-
-            set_body_tet_num(body_type, elementNumber);
-
-            for(int i = 0; i < elementNumber; i++)
-            {
-                getline(ifs, line);
-
-                vector<std::string> elementIndexex;
-                std::string         spacer = " ";
-                split(line, elementIndexex, spacer);
-                int elesize = elementIndexex.size();
-                index0      = atoi(elementIndexex[elesize - 4].c_str()) - 1;
-                index1      = atoi(elementIndexex[elesize - 3].c_str()) - 1;
-                index2      = atoi(elementIndexex[elesize - 2].c_str()) - 1;
-                index3      = atoi(elementIndexex[elesize - 1].c_str()) - 1;
-
-                uint4 tetrahedra;
-                tetrahedra.x = index0 + vertexOffset;
-                tetrahedra.y = index1 + vertexOffset;
-                tetrahedra.z = index2 + vertexOffset;
-                tetrahedra.w = index3 + vertexOffset;
-                tetrahedras.push_back(tetrahedra);
-                tetra_fiberDir.push_back(make_double3(0, 0, 0));
-                vert_youngth_modules.push_back(youngth_module);
-            }
-            break;
-        }
+        abd_tetOffset += elementNumber;
+        youngth_module = 1e7;
     }
-    ifs.close();
+    set_body_tet_num(body_type, elementNumber);
+
+    const int boundaryType = body_boundary_type == BodyBoundaryType::Fixed ? 1 : 0;
+
+    double xmin = 1e32, ymin = 1e32, zmin = 1e32;
+    double xmax = -1e32, ymax = -1e32, zmax = -1e32;
+
+    for(int i = 0; i < nodeNumber; ++i)
+    {
+        Eigen::Vector4d p_local{V(i, 0), V(i, 1), V(i, 2), 1.0};
+        Eigen::Vector4d p_world = transform * p_local;
+
+        const double3 vertex = make_double3(p_world(0), p_world(1), p_world(2));
+
+        boundaryTypies.push_back(boundaryType);
+        vertexes.push_back(vertex);
+        velocities.push_back(make_double3(0, 0, 0));
+        masses.push_back(0.0);
+
+        __GEIGEN__::Matrix3x3d constraint;
+        __GEIGEN__::__set_Mat_val(constraint, 1, 0, 0, 0, 1, 0, 0, 0, 1);
+        constraints.push_back(constraint);
+
+        xmin = std::min(xmin, vertex.x);
+        ymin = std::min(ymin, vertex.y);
+        zmin = std::min(zmin, vertex.z);
+        xmax = std::max(xmax, vertex.x);
+        ymax = std::max(ymax, vertex.y);
+        zmax = std::max(zmax, vertex.z);
+    }
+
+    minTConer = make_double3(xmin, ymin, zmin);
+    maxTConer = make_double3(xmax, ymax, zmax);
+
+    for(int i = 0; i < elementNumber; ++i)
+    {
+        uint4 tetrahedra;
+        tetrahedra.x = static_cast<uint32_t>(T(i, 0)) + vertexOffset;
+        tetrahedra.y = static_cast<uint32_t>(T(i, 1)) + vertexOffset;
+        tetrahedra.z = static_cast<uint32_t>(T(i, 2)) + vertexOffset;
+        tetrahedra.w = static_cast<uint32_t>(T(i, 3)) + vertexOffset;
+        tetrahedras.push_back(tetrahedra);
+        tetra_fiberDir.push_back(make_double3(0, 0, 0));
+        vert_youngth_modules.push_back(youngth_module);
+    }
 
     double boxTVolum = (maxTConer.x - minTConer.x) * (maxTConer.y - minTConer.y)
                        * (maxTConer.z - minTConer.z);
@@ -937,7 +878,7 @@ int tetrahedra_obj::getVertNeighbors()
         return 0;
     vertNeighbors.resize(fem_vertexNum);
     set<pair<uint64_t, uint64_t>> Edges_set;
-    for(int i = 0; i < tetrahedraNum-abd_tetOffset; i++)
+    for(int i = 0; i < tetrahedraNum - abd_tetOffset; i++)
     {
         const auto& edgI4   = tetrahedras[i + abd_tetOffset];
         uint64_t    edgI[4] = {edgI4.x, edgI4.y, edgI4.z, edgI4.w};
@@ -1299,12 +1240,12 @@ void tetrahedra_obj::begin_load_body(const std::string& filename,
                                      BodyBoundaryType   body_boundary_type)
 {
     current_body_id = abd_fem_count_info.total_body_num();
-    
+
     // check the body order: ABD then FEM
     if(body_type == gipc::BodyType::FEM)
     {
         current_body_id = -1;
-        abd_load_phase = false;
+        abd_load_phase  = false;
         // increase the number of FEM body
         abd_fem_count_info.fem_body_num++;
     }
