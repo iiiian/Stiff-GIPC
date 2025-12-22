@@ -511,8 +511,6 @@ bool tetrahedra_obj::load_tetrahedraMesh(const std::string&     filename,
     }
     set_body_tet_num(body_type, elementNumber);
 
-    const int boundaryType = body_boundary_type == BodyBoundaryType::Fixed ? 1 : 0;
-
     double xmin = 1e32, ymin = 1e32, zmin = 1e32;
     double xmax = -1e32, ymax = -1e32, zmax = -1e32;
 
@@ -523,7 +521,9 @@ bool tetrahedra_obj::load_tetrahedraMesh(const std::string&     filename,
 
         const double3 vertex = make_double3(p_world(0), p_world(1), p_world(2));
 
-        boundaryTypies.push_back(boundaryType);
+        // 0 means free, not a boundary.
+        // boundary for obstacle is set in main().
+        boundaryTypies.push_back(0);
         vertexes.push_back(vertex);
         velocities.push_back(make_double3(0, 0, 0));
         masses.push_back(0.0);

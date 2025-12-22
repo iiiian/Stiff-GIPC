@@ -21,12 +21,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 enable_language(CUDA)
 find_package(Eigen3 REQUIRED)
 find_package(TBB REQUIRED)
-find_package(GLEW REQUIRED)
-find_package(GLUT REQUIRED)
-find_package(OpenGL REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(argparse REQUIRED)
 find_package(CUDAToolkit REQUIRED)
+
+# add third-party libraries
+add_subdirectory("StiffGIPC/MshIO")
 
 # add external libraries
 if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
@@ -43,6 +43,8 @@ file(GLOB_RECURSE GIPC_SOURCE CONFIGURE_DEPENDS
     "StiffGIPC/*.cu" "StiffGIPC/*.cpp")
 file(GLOB_RECURSE GIPC_HANDER CONFIGURE_DEPENDS 
     "StiffGIPC/*.h" "StiffGIPC/*.cuh" "StiffGIPC/*.hpp" "StiffGIPC/*.inl" "StiffGIPC/*.inc")
+list(FILTER GIPC_SOURCE EXCLUDE REGEX ".*/MshIO/.*")
+list(FILTER GIPC_HANDER EXCLUDE REGEX ".*/MshIO/.*")
 target_sources(gipc PRIVATE ${GIPC_SOURCE} ${GIPC_HANDER})
 
 # add assets and output directory, that we can easily access them in the code
@@ -66,8 +68,9 @@ endif()
 
 target_link_libraries(gipc PRIVATE cusparse cublas cusolver cudart_static)
 target_link_libraries(gipc PRIVATE metis_partition CUDA::cudart)
-target_link_libraries(gipc PRIVATE GLUT::GLUT GLEW::GLEW OpenGL::GLU Eigen3::Eigen TBB::tbb)
+target_link_libraries(gipc PRIVATE Eigen3::Eigen TBB::tbb)
 target_link_libraries(gipc PRIVATE nlohmann_json::nlohmann_json argparse::argparse)
+target_link_libraries(gipc PRIVATE mshio::mshio)
 
 target_compile_features(gipc PRIVATE cxx_std_17)
 
