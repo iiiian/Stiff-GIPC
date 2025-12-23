@@ -9,18 +9,23 @@ cmake --preset debug
 cmake --build build/debug -j20
 ```
 
-## Run (free fall)
+## Offline sort mode
+
+Sort all `.msh` files in a directory and write sorted meshes + `.part` files:
 
 ```bash
-./build/debug/gipc -j examples/free_fall.json -o Output/free_fall_cli
+./build/debug/gipc --sort examples --output output/sorted_mesh
 ```
 
-Outputs:
-- `Output/free_fall_cli/frame_00000.obj` (one `.obj` per frame)
+outputs (per input mesh):
+- `output/sorted_mesh/<name>_sorted.16.msh`
+- `output/sorted_mesh/<name>_sorted.16.part`
 
-Each `.obj` contains all objects (combined).
+## Run
 
-Only tetrahedral objects are written to `.obj`. The analytic ground plane (`ground.normal`/`ground.offset`) is collision-only and is not written; the example scene models the floor as a real tetrahedral obstacle mesh (`examples/ground_plane.msh`) so it is included.
+```bash
+./build/debug/gipc -j examples/free_fall.json -o output/free_fall_cli
+```
 
 ## JSON schema (all fields required)
 
@@ -50,7 +55,7 @@ Top-level:
 
 ### `simulation`
 - `frames` (int): number of frames to simulate
-- `preconditioner_type` (int): only `0` is supported by this CLI
+- `preconditioner_type` (int): `0` disables MAS, non-zero enables MAS
 
 ### `ground`
 - `normal` (vec3): plane normal
@@ -59,6 +64,7 @@ Top-level:
 ### `objects[]`
 - `is_obstacle` (bool): `true` for collision-only (fixed vertices), `false` for dynamic
 - `mesh_msh` (string): path to a Gmsh `.msh` tet mesh
+- `part_file` (string): path to a `.part` file (required; ignored when `simulation.preconditioner_type == 0`)
 - `young_modulus` (number): per-object Young’s modulus
 - `transform` (object)
   - `scale` (number): uniform scale
@@ -67,3 +73,5 @@ Top-level:
 - `pin_boxes` (array): each entry pins vertices inside an axis-aligned box
   - `min` (vec3)
   - `max` (vec3)
+
+If `simulation.preconditioner_type != 0`, every object (including obstacles) must provide a valid `part_file`.
