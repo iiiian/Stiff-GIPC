@@ -22,32 +22,27 @@ std::string get_extension(const std::string& path)
     return p.extension().string();  // extension() 直接获取扩展名（包含点号）
 }
 
-std::vector<std::string> metis_sort(std::string obj_path, int dimension)
+std::vector<std::string> metis_sort(std::string obj_path, int dimension, const std::string& output_dir)
 {
-    std::string mesh_name     = get_filename_without_extension(obj_path);
-    std::string extension     = get_extension(obj_path);
-    bool        isTriangle    = true;
-    size_t      block_size    = 16;
-    std::string output_folder = OUTPUT_DIR;
-    std::string out_file_path = output_folder + mesh_name + "_sorted."
-                                + std::to_string(block_size) + extension;
+    std::string           mesh_name  = get_filename_without_extension(obj_path);
+    std::string           extension  = get_extension(obj_path);
+    bool                  isTriangle = true;
+    size_t                block_size = 16;
+    std::filesystem::path output_folder = output_dir;
+    std::filesystem::path out_file_path =
+        output_folder / (mesh_name + "_sorted." + std::to_string(block_size) + extension);
 
-    std::filesystem::exists(output_folder)
-        || std::filesystem::create_directory(output_folder);
+    std::filesystem::create_directories(output_folder);
     std::ifstream ifs(out_file_path);
     if(ifs)
     {
         printf("metis files exist\n");
         ifs.close();
         std::vector<std::string> out_paths;
-        std::string sort_part_path = output_folder + mesh_name + "_sorted."
-                                     + std::to_string(block_size) + ".part";
-
-        std::string sort_obj_path = output_folder + mesh_name + "_sorted."
-                                    + std::to_string(block_size) + extension;
-
-        out_paths.push_back(out_file_path);
-        out_paths.push_back(sort_part_path);
+        std::filesystem::path    sort_part_path =
+            output_folder / (mesh_name + "_sorted." + std::to_string(block_size) + ".part");
+        out_paths.push_back(out_file_path.string());
+        out_paths.push_back(sort_part_path.string());
         return out_paths;
     }
     ifs.close();
@@ -148,7 +143,6 @@ std::vector<std::string> metis_sort(std::string obj_path, int dimension)
 
         //std::cout << std::endl;
 
-        
 
         //auto exceed_block = std::count_if(blocks.begin(),
         //                                  blocks.end(),
@@ -201,20 +195,17 @@ std::vector<std::string> metis_sort(std::string obj_path, int dimension)
         //sorted_mesh.export_wireframe(output_folder + mesh_name + "_sorted."
         //                             + std::to_string(block_size) + ".obj");
         std::vector<std::string> out_paths;
-        std::string sort_part_path = output_folder + mesh_name + "_sorted."
-                                     + std::to_string(block_size) + ".part";
+        std::filesystem::path    sort_part_path =
+            output_folder / (mesh_name + "_sorted." + std::to_string(block_size) + ".part");
         std::cout << "export sorted partition ..." << std::endl;
-        sorted_mesh.export_partition(output_folder + mesh_name + "_sorted."
-                                         + std::to_string(block_size) + ".part",
-                                     sorted_part);
-        std::string sort_obj_path = output_folder + mesh_name + "_sorted."
-                                    + std::to_string(block_size) + extension;
+        sorted_mesh.export_partition(sort_part_path.string(), sorted_part);
+        std::filesystem::path sort_obj_path =
+            output_folder / (mesh_name + "_sorted." + std::to_string(block_size) + extension);
         std::cout << "export sorted tri mesh ..." << std::endl;
-        sorted_mesh.export_mesh(output_folder + mesh_name + "_sorted."
-                                + std::to_string(block_size) + extension);
+        sorted_mesh.export_mesh(sort_obj_path.string());
 
-        out_paths.push_back(sort_obj_path);
-        out_paths.push_back(sort_part_path);
+        out_paths.push_back(sort_obj_path.string());
+        out_paths.push_back(sort_part_path.string());
         return out_paths;
     }
     else
@@ -283,7 +274,6 @@ std::vector<std::string> metis_sort(std::string obj_path, int dimension)
                                                [](const auto& a, const auto& b)
                                                { return a.size() < b.size(); });
 
-        
 
         // block that not full
         auto not_full_block = std::count_if(blocks.begin(),
@@ -309,9 +299,6 @@ std::vector<std::string> metis_sort(std::string obj_path, int dimension)
 
         //std::cout << std::endl;
 
-
-        
-        
 
         /*auto exceed_block = std::count_if(blocks.begin(),
                                           blocks.end(),
@@ -364,20 +351,17 @@ std::vector<std::string> metis_sort(std::string obj_path, int dimension)
         //sorted_mesh.export_wireframe(output_folder + mesh_name + "_sorted."
         //                             + std::to_string(block_size) + ".obj");
         std::vector<std::string> out_paths;
-        std::string sort_part_path = output_folder + mesh_name + "_sorted."
-                                     + std::to_string(block_size) + ".part";
+        std::filesystem::path    sort_part_path =
+            output_folder / (mesh_name + "_sorted." + std::to_string(block_size) + ".part");
         std::cout << "export sorted partition ..." << std::endl;
-        sorted_mesh.export_partition(output_folder + mesh_name + "_sorted."
-                                         + std::to_string(block_size) + ".part",
-                                     sorted_part);
-        std::string sort_obj_path = output_folder + mesh_name + "_sorted."
-                                    + std::to_string(block_size) + extension;
+        sorted_mesh.export_partition(sort_part_path.string(), sorted_part);
+        std::filesystem::path sort_obj_path =
+            output_folder / (mesh_name + "_sorted." + std::to_string(block_size) + extension);
         std::cout << "export sorted tet mesh ..." << std::endl;
-        sorted_mesh.export_mesh(output_folder + mesh_name + "_sorted."
-                                + std::to_string(block_size) + extension);
+        sorted_mesh.export_mesh(sort_obj_path.string());
 
-        out_paths.push_back(sort_obj_path);
-        out_paths.push_back(sort_part_path);
+        out_paths.push_back(sort_obj_path.string());
+        out_paths.push_back(sort_part_path.string());
         return out_paths;
     }
 }

@@ -4,6 +4,8 @@
 #include <map>
 #include <set>
 
+#include "msh_io.hpp"
+
 namespace gipc
 {
 void TetMesh::load(const std::string& filename)
@@ -69,9 +71,8 @@ std::vector<int> TetMesh::sort_index(const std::vector<int>& partition)
     std::transform(partition.begin(),
                    partition.end(),
                    sorted_part.begin(),
-                   [i = 0](idx_t p) mutable -> std::pair<idx_t, idx_t> {
-                       return {i++, p};
-                   });
+                   [i = 0](idx_t p) mutable -> std::pair<idx_t, idx_t>
+                   { return {i++, p}; });
 
     std::sort(sorted_part.begin(),
               sorted_part.end(),
@@ -94,9 +95,8 @@ std::vector<int> TriMesh::sort_index(const std::vector<int>& partition)
     std::transform(partition.begin(),
                    partition.end(),
                    sorted_part.begin(),
-                   [i = 0](idx_t p) mutable -> std::pair<idx_t, idx_t> {
-                       return {i++, p};
-                   });
+                   [i = 0](idx_t p) mutable -> std::pair<idx_t, idx_t>
+                   { return {i++, p}; });
 
     std::sort(sorted_part.begin(),
               sorted_part.end(),
@@ -114,28 +114,24 @@ std::vector<int> TriMesh::sort_index(const std::vector<int>& partition)
 
 void TetMesh::export_mesh(const std::string& filename)
 {
-    std::ofstream ofs(filename);
-    auto          header =
-        R"($MeshFormat
-2.2 0 8
-$EndMeshFormat)";
-    ofs << header << std::endl;
-    ofs << "$Nodes" << std::endl;
-    ofs << vertices().size() << std::endl;
-    for(int i = 0; i < vertices().size(); i++)
+    Eigen::MatrixXd V(static_cast<int>(m_vertices.size()), 3);
+    for(int i = 0; i < static_cast<int>(m_vertices.size()); ++i)
     {
-        ofs << i + 1 << " " << m_vertices[i].x() << " " << m_vertices[i].y()
-            << " " << m_vertices[i].z() << std::endl;
+        V(i, 0) = m_vertices[i].x();
+        V(i, 1) = m_vertices[i].y();
+        V(i, 2) = m_vertices[i].z();
     }
 
-    ofs << "$Elements" << std::endl;
-    ofs << m_tetrahedra.size() << std::endl;
-    for(int i = 0; i < m_tetrahedra.size(); i++)
+    Eigen::MatrixXi T(static_cast<int>(m_tetrahedra.size()), 4);
+    for(int i = 0; i < static_cast<int>(m_tetrahedra.size()); ++i)
     {
-        ofs << i + 1 << " 4 0 " << m_tetrahedra[i].x() + 1 << " "
-            << m_tetrahedra[i].y() + 1 << " " << m_tetrahedra[i].z() + 1 << " "
-            << m_tetrahedra[i].w() + 1 << std::endl;
+        T(i, 0) = m_tetrahedra[i].x();
+        T(i, 1) = m_tetrahedra[i].y();
+        T(i, 2) = m_tetrahedra[i].z();
+        T(i, 3) = m_tetrahedra[i].w();
     }
+
+    gipc::io::save_tet_mesh(filename, V, T);
 }
 
 void TriMesh::export_mesh(const std::string& filename)
@@ -149,8 +145,8 @@ void TriMesh::export_mesh(const std::string& filename)
 
     for(int i = 0; i < m_triangle.size(); i++)
     {
-        ofs << "f " << m_triangle[i].x() + 1 << " "
-            << m_triangle[i].y() + 1 << " " << m_triangle[i].z() + 1 << std::endl;
+        ofs << "f " << m_triangle[i].x() + 1 << " " << m_triangle[i].y() + 1
+            << " " << m_triangle[i].z() + 1 << std::endl;
     }
 }
 
@@ -212,7 +208,6 @@ TriMesh TriMesh::sorted(const std::vector<int>& sort_index) const
         new_tri.x() = old_id_to_new_id[tri.x()];
         new_tri.y() = old_id_to_new_id[tri.y()];
         new_tri.z() = old_id_to_new_id[tri.z()];
-       
     }
     sorted_mesh._build_adj();
     return sorted_mesh;
@@ -273,81 +268,26 @@ void TriMesh::_split(const std::string& str, std::vector<std::string>& v, const 
 
 void TetMesh::_load(const std::string& filename)
 {
-    using namespace std;
-    using namespace Eigen;
-    int vertexOffset = 0;
+    Eigen::MatrixXd V;
+    Eigen::MatrixXi T;
+    gipc::io::load_tet_mesh(filename, V, T);
 
-    ifstream ifs(filename);
-    if(!ifs)
+    m_vertices.resize(static_cast<size_t>(V.rows()));
+    for(int i = 0; i < V.rows(); ++i)
     {
-
-        fprintf(stderr, "unable to read file %s\n", filename.c_str());
-        ifs.close();
-        exit(-1);
+        m_vertices[static_cast<size_t>(i)] = Eigen::Vector3d{V(i, 0), V(i, 1), V(i, 2)};
     }
 
-    double x, y, z;
-    int    index0, index1, index2, index3;
-    string line          = "";
-    int    nodeNumber    = 0;
-    int    elementNumber = 0;
-    while(getline(ifs, line))
+    m_tetrahedra.resize(static_cast<size_t>(T.rows()));
+    for(int i = 0; i < T.rows(); ++i)
     {
-        if(line.length() <= 1)
-            continue;
-        if(line.substr(1, 5) == "Nodes")
-        {
-            getline(ifs, line);
-            nodeNumber = atoi(line.c_str());
-
-            double xmin = 1e32, ymin = 1e32, zmin = 1e32;
-            double xmax = -1e32, ymax = -1e32, zmax = -1e32;
-            for(int i = 0; i < nodeNumber; i++)
-            {
-                getline(ifs, line);
-                vector<std::string> nodePos;
-                std::string         spacer = " ";
-                _split(line, nodePos, spacer);
-                x = atof(nodePos[1].c_str());
-                y = atof(nodePos[2].c_str());
-                z = atof(nodePos[3].c_str());
-                Vector3d vertex{x, y, z};
-
-                double mass         = 0;
-                int    boundaryType = 0;
-
-                m_vertices.push_back(vertex);
-            }
-        }
-
-        if(line.substr(1, 8) == "Elements")
-        {
-            getline(ifs, line);
-            elementNumber = atoi(line.c_str());
-
-            for(int i = 0; i < elementNumber; i++)
-            {
-                getline(ifs, line);
-
-                vector<std::string> elementIndexex;
-                std::string         spacer = " ";
-                _split(line, elementIndexex, spacer);
-                index0 = atoi(elementIndexex[3].c_str()) - 1;
-                index1 = atoi(elementIndexex[4].c_str()) - 1;
-                index2 = atoi(elementIndexex[5].c_str()) - 1;
-                index3 = atoi(elementIndexex[6].c_str()) - 1;
-
-                Vector4i tet;
-                tet.x() = index0 + vertexOffset;
-                tet.y() = index1 + vertexOffset;
-                tet.z() = index2 + vertexOffset;
-                tet.w() = index3 + vertexOffset;
-                m_tetrahedra.push_back(tet);
-            }
-            break;
-        }
+        Eigen::Vector4i tet;
+        tet.x()                              = T(i, 0);
+        tet.y()                              = T(i, 1);
+        tet.z()                              = T(i, 2);
+        tet.w()                              = T(i, 3);
+        m_tetrahedra[static_cast<size_t>(i)] = tet;
     }
-    ifs.close();
 }
 
 void TriMesh::_load(const std::string& filename)
@@ -356,7 +296,7 @@ void TriMesh::_load(const std::string& filename)
     using namespace Eigen;
     int vertexOffset = 0;
 
-   ifstream ifs(filename);
+    ifstream ifs(filename);
     if(!ifs)
     {
 
@@ -471,8 +411,7 @@ void TriMesh::_load(const std::string& filename)
                     //triangles.push_back(faceVertIndex);
                 }
 
-                    m_triangle.push_back(faceVertIndex);
-                
+                m_triangle.push_back(faceVertIndex);
             }
         }
     }
@@ -573,7 +512,7 @@ void TriMesh::_build_adj()
         insert_adj(tri.y(), tri.x());
         insert_adj(tri.y(), tri.z());
         //insert_adj(tri.y(), tri.w());
-        
+
         insert_adj(tri.z(), tri.x());
         insert_adj(tri.z(), tri.y());
         //insert_adj(tri.z(), tri.w());

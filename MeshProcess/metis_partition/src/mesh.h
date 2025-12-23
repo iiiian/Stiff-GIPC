@@ -36,8 +36,6 @@ class TriMesh : public NodeEdgeModel
 };
 
 
-
-
 class TetMesh : public NodeEdgeModel
 {
   public:

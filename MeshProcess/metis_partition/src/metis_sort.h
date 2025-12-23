@@ -1,3 +1,3 @@
 #include <string>
 
-std::vector<std::string> metis_sort(std::string obj_path, int dimension);
+std::vector<std::string> metis_sort(std::string obj_path, int dimension, const std::string& output_dir);

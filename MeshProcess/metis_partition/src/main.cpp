@@ -14,7 +14,7 @@
 int main()
 {
     std::string mesh_name = "high_cloth";
-    std::string obj_path   = ASSETS_DIR "/triMesh/" + mesh_name + ".obj";
-    metis_sort(obj_path, 2);
+    std::string obj_path  = ASSETS_DIR "/triMesh/" + mesh_name + ".obj";
+    metis_sort(obj_path, 2, std::string{ASSETS_DIR} + "/sorted_mesh/");
     return 0;
 }
