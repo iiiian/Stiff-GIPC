@@ -457,10 +457,7 @@ int main(int argc, char** argv)
 
     ipc.MALLOC_DEVICE_MEM();
 
-    const auto ground_normal = read_vec3(scene.at("ground").at("normal"));
-    const auto ground_offset = scene.at("ground").at("offset").get<double>();
-    CUDA_SAFE_CALL(cudaMemcpy(ipc._groundNormal, &ground_normal, sizeof(double3), cudaMemcpyHostToDevice));
-    CUDA_SAFE_CALL(cudaMemcpy(ipc._groundOffset, &ground_offset, sizeof(double), cudaMemcpyHostToDevice));
+    // Ground collision is disabled (ipc.useGround = false by default)
 
     CUDA_SAFE_CALL(cudaMemcpy(
         ipc._faces, tetMesh.surface.data(), ipc.surface_Num * sizeof(uint3), cudaMemcpyHostToDevice));

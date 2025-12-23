@@ -9016,7 +9016,10 @@ void GIPC::buildCP()
     //bvh_e.Construct();
     bvh_e.SelfCollitionDetect(dHat);
     //CUDA_SAFE_CALL(cudaDeviceSynchronize());
-    GroundCollisionDetect();
+    if(useGround)
+    {
+        GroundCollisionDetect();
+    }
     //CUDA_SAFE_CALL(cudaDeviceSynchronize());
     CUDA_SAFE_CALL(cudaMemcpy(&h_cpNum, _cpNum, 5 * sizeof(uint32_t), cudaMemcpyDeviceToHost));
     CUDA_SAFE_CALL(cudaMemcpy(&h_gpNum, _gpNum, sizeof(uint32_t), cudaMemcpyDeviceToHost));
@@ -10534,7 +10537,7 @@ bool GIPC::checkGroundIntersection()
 
 bool GIPC::isIntersected(device_TetraData& TetMesh)
 {
-    if(checkGroundIntersection())
+    if(useGround && checkGroundIntersection())
     {
         return true;
     }
@@ -10789,8 +10792,11 @@ int              GIPC::solve_subIP(device_TetraData& TetMesh,
         cudaEventRecord(end1);
         double alpha = 1.0, slackness_a = 0.8, slackness_m = 0.8;
 
-        alpha =
-            std::min(alpha, ground_largestFeasibleStepSize(slackness_a, pcg_data.squeue));
+        if(useGround)
+        {
+            alpha =
+                std::min(alpha, ground_largestFeasibleStepSize(slackness_a, pcg_data.squeue));
+        }
         //alpha = std::min(alpha, InjectiveStepSize(0.2, 1e-6, pcg_data.squeue, TetMesh.tetrahedras));
         alpha = std::min(
             alpha, self_largestFeasibleStepSize(slackness_m, pcg_data.squeue, h_cpNum[0]));

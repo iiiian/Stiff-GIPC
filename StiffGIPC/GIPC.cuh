@@ -124,6 +124,7 @@ class GIPC
     double volumeRate              = 0.0;
     double frictionRate            = 0.0;
     double gd_frictionRate         = 0.0;
+    bool   useGround               = false;
     double clothThickness          = 0.0;
     double clothYoungModulus       = 0.0;
     double bendYoungModulus        = 0.0;

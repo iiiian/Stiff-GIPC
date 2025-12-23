@@ -1,6 +1,6 @@
 # Headless scene CLI
 
-This repo’s `gipc` binary is a headless CLI that loads a scene from JSON, runs the simulation for a fixed number of frames, and writes one `.obj` per frame.
+This repo's `gipc` binary is a headless CLI that loads a scene from JSON, runs the simulation for a fixed number of frames, and writes one `.obj` per frame.
 
 ## Build
 
@@ -30,48 +30,228 @@ outputs (per input mesh):
 ## JSON schema (all fields required)
 
 Top-level:
-- `settings` (object): simulation parameters (matches `Assets/scene/parameterSetting.txt` fields)
+- `settings` (object): simulation parameters
 - `simulation` (object): run controls
-- `ground` (object): ground plane used by ground collision
 - `objects` (array): one or more tetrahedral objects
 
-### `settings`
-- `volume_mesh_density` (number)
-- `poisson_rate` (number)
-- `friction_rate` (number)
-- `gd_friction_rate` (number)
-- `triangle_mesh_thickness` (number)
-- `triangle_mesh_youngs_modulus` (number)
-- `triangle_bend_youngs_modulus` (number)
-- `triangle_mesh_density` (number)
-- `strain_rate` (number)
-- `motion_stiffness` (number)
-- `collision_detection_buff_scale` (number)
-- `motion_rate` (number)
-- `ipc_time_step` (number)
-- `pcg_solver_threshold` (number)
-- `Newton_solver_threshold` (number)
-- `IPC_ralative_dHat` (number)
+---
 
-### `simulation`
-- `frames` (int): number of frames to simulate
-- `preconditioner_type` (int): `0` disables MAS, non-zero enables MAS
+## `settings`
 
-### `ground`
-- `normal` (vec3): plane normal
-- `offset` (number): plane offset used by the ground collision kernel
+### `volume_mesh_density`
+- **Type:** number
 
-### `objects[]`
-- `is_obstacle` (bool): `true` for collision-only (fixed vertices), `false` for dynamic
-- `mesh_msh` (string): path to a Gmsh `.msh` tet mesh
-- `part_file` (string): path to a `.part` file (required; ignored when `simulation.preconditioner_type == 0`)
-- `young_modulus` (number): per-object Young’s modulus
-- `transform` (object)
-  - `scale` (number): uniform scale
-  - `translation` (vec3): world translation
-- `initial_velocity` (vec3): initial velocity for all vertices
-- `pin_boxes` (array): each entry pins vertices inside an axis-aligned box
-  - `min` (vec3)
-  - `max` (vec3)
+  ```cpp
+  mesh.masses[vertex] += tetrahedron_volume * density / 4;
+  ```
+- **Effect:** Determines mass per vertex. Higher density = heavier mesh = slower motion under gravity.
 
-If `simulation.preconditioner_type != 0`, every object (including obstacles) must provide a valid `part_file`.
+### `poisson_rate`
+- **Type:** number
+- **Effect:** Controls compressibility. Values near 0.5 = nearly incompressible (rubber-like). Values near 0 = easily compressible.
+
+### `friction_rate`
+- **Type:** number
+- **Used in:** `GIPC.cu:9128, 9265, 10443`
+- **Formula:** at `GIPC.cu:10443`
+  ```cpp
+  auto fric = frictionRate * Energy_Add_Reduction_Algorithm(5, TetMesh);
+  ```
+- **Effect:** Friction coefficient for object-object collisions. Multiplies friction energy/force contribution.
+
+### `gd_friction_rate`
+- **Type:** number
+- **Effect:** **UNUSED** - ground collision is disabled in headless CLI. Value required but has no effect.
+
+### `triangle_mesh_thickness`
+- **Type:** number
+- **Effect:** **UNUSED** - cloth simulation is disabled in headless CLI. Value required but has no effect.
+
+### `triangle_mesh_youngs_modulus`
+- **Type:** number
+- **Effect:** **UNUSED** - cloth simulation is disabled in headless CLI. Value required but has no effect.
+
+### `triangle_bend_youngs_modulus`
+- **Type:** number
+- **Effect:** **UNUSED** - cloth simulation is disabled in headless CLI. Value required but has no effect.
+
+### `triangle_mesh_density`
+- **Type:** number
+- **Effect:** **UNUSED** - cloth simulation is disabled in headless CLI. Value required but has no effect.
+
+### `strain_rate`
+- **Type:** number
+- **Effect:** **UNUSED** - cloth simulation is disabled in headless CLI. Value required but has no effect.
+
+### `motion_stiffness`
+- **Type:** number
+- **Stored in:** `ipc.softMotionRate`
+- **Used in:** `GIPC.cu:8671, 8819, 10363`
+- **Effect:** Stiffness for soft constraint targets (animation targets). Higher = vertices track targets more rigidly.
+
+### `collision_detection_buff_scale`
+- **Type:** number
+  ```cpp
+  MAX_CCD_COLLITION_PAIRS_NUM = 1 * scale * (surface_Num*15 + edge_Num*10) * max(IPC_dt/0.01, 2.0);
+  MAX_COLLITION_PAIRS_NUM = (surf_vertexNum*3 + edge_Num*2) * 3 * scale;
+  ```
+- **Effect:** Scales GPU buffer size for collision pairs. Increase if simulation crashes with "too many collision pairs".
+
+### `motion_rate`
+- **Type:** number
+- **Stored in:** `ipc.animation_subRate = 1.0 / motion_rate` at `main.cu:523`
+- **Used in:** `GIPC.cu:11009, 11045`
+- **Effect:** Controls animation playback speed. Higher = faster animation target interpolation.
+
+### `ipc_time_step`
+- **Type:** number
+- **Used in:** Multiple locations at `GIPC.cu:8029, 9123, 10766, 10881`
+- **Effect:** Simulation timestep. Smaller = more stable but slower. Larger = faster but may diverge.
+
+### `pcg_solver_threshold`
+- **Type:** number
+- **Stored in:** `ipc.pcg_threshold`
+- **Used in:** `gipc/gipc.cu:53`
+  ```cpp
+  cfg.global_tol_rate = pcg_threshold;
+  ```
+- **Effect:** Relative tolerance for PCG linear solver convergence. Smaller = more accurate but slower.
+
+### `Newton_solver_threshold`
+- **Type:** number
+- **Stored in:** `ipc.Newton_solver_threshold`
+- **Used in:** `GIPC.cu:10765-10766`
+- **Formula:**
+  ```cpp
+  bool gradVanish = (distToOpt_PN < sqrt(Newton_solver_threshold^2 * bboxDiagSize2 * IPC_dt^2));
+  ```
+- **Effect:** Convergence criterion for Newton solver. When gradient norm falls below this scaled threshold, Newton iteration stops. The threshold is scale-invariant (adapts to scene size and timestep).
+
+### `IPC_ralative_dHat`
+- **Type:** number
+- **Stored in:** `ipc.relative_dhat`
+- **Formula:**
+  ```cpp
+  bboxDiagSize2 = squaredNorm(maxCorner - minCorner);  // Scene bounding box diagonal^2
+  dHat = relative_dhat^2 * bboxDiagSize2;              // Actual collision distance threshold
+  ```
+- **Effect:** Collision activation distance relative to scene size. Collisions activate when `distance^2 < dHat`. Larger = earlier collision response, smoother but more expensive.
+
+---
+
+## `simulation`
+
+### `frames`
+- **Type:** int
+  ```cpp
+  for(int frame = 0; frame < frames; ++frame) {
+      ipc.IPC_Solver(d_tetMesh);
+      write_obj(...);
+  }
+  ```
+- **Effect:** Number of simulation frames to run. Each frame calls `IPC_Solver()` once and outputs one `.obj` file.
+
+### `preconditioner_type`
+- **Type:** int
+- **Stored in:** `ipc.pcg_data.P_type` at `main.cu:293`
+- **Used in:** `gipc/gipc.cu:60-69`
+  ```cpp
+  if(pcg_data.P_type == 1) {
+      m_global_linear_system->create<MAS_Preconditioner>(...);
+  } else {
+      m_global_linear_system->create<DiagPreconditioner>();
+  }
+  ```
+- **Effect:**
+  - `0` = Diagonal preconditioner (simple, no `.part` files needed)
+  - `1` = MAS (Multi-level Additive Schwarz) preconditioner (faster convergence, requires `.part` files)
+
+---
+
+## `objects[]`
+
+### `is_obstacle`
+- **Type:** bool
+- **Used in:** `main.cu:331-339`
+  ```cpp
+  if(is_obstacle) {
+      for(int i = v_begin; i < v_end; ++i) {
+          tetMesh.boundaryTypies[i] = 1;  // Mark as fixed
+      }
+  }
+  ```
+- **Effect:** `true` = all vertices fixed (boundary type 1), no gravity/forces applied. `false` = dynamic vertices subject to physics.
+
+### `mesh_msh`
+- **Type:** string
+- **Used in:** `main.cu:314-315`
+  ```cpp
+  tetMesh.load_tetrahedraMesh(mesh_path, transform, young_modulus, ...);
+  ```
+- **Effect:** Path to Gmsh `.msh` file containing tetrahedral mesh.
+
+### `part_file`
+- **Type:** string
+- **Used in:** `main.cu:323`
+- **Effect:** Path to METIS partition file for MAS preconditioner. Required when `preconditioner_type != 0`, ignored otherwise.
+
+### `young_modulus`
+- **Type:** number
+- **Used in:** `main.cu:304, 315` -> stored per-tetrahedron in `mesh.vert_youngth_modules`
+- **Flow:** `load_tetrahedraMesh()` -> `initFEM()` -> compute `lengthRate`/`volumeRate` per tet
+- **Final usage:** `femEnergy.cu:1032-1050` (Stable Neo-Hookean energy)
+  ```cpp
+  // Stable Neo-Hookean energy formulation
+  double Jminus1 = I3 - 1 - lenRate/volRate;
+  return 0.5 * (lenRate*(I2-3) + volRate*(Jminus1^2)) * volume;
+  ```
+  Where `I2 = ||F||^2` (Frobenius norm squared) and `I3 = det(F)` (deformation gradient determinant).
+- **Effect:** Per-object stiffness. Higher = stiffer material.
+
+### `transform`
+
+#### `scale`
+- **Type:** number
+- **Used in:** `main.cu:115-128, 305`
+  ```cpp
+  transform.block<3,3>(0,0) = Matrix3d::Identity() * scale;
+  ```
+- **Effect:** Uniform scale applied to mesh vertices during loading.
+
+#### `translation`
+- **Type:** vec3 (array of 3 numbers)
+- **Used in:** `main.cu:115-128, 305`
+  ```cpp
+  transform.block<3,1>(0,3) = Vector3d{t[0], t[1], t[2]};
+  ```
+- **Effect:** World-space translation applied to mesh vertices during loading.
+
+### `initial_velocity`
+- **Type:** vec3 (array of 3 numbers)
+- **Used in:** `main.cu:342-345`
+  ```cpp
+  for(int i = v_begin; i < v_end; ++i) {
+      tetMesh.velocities[i] = init_vel;
+  }
+  ```
+- **Effect:** Initial velocity for all vertices of the object.
+
+### `pin_boxes[]`
+
+#### `min`
+- **Type:** vec3 (array of 3 numbers)
+- **Effect:** Minimum corner of axis-aligned bounding box for vertex pinning.
+
+#### `max`
+- **Type:** vec3 (array of 3 numbers)
+- **Used in:** `main.cu:348-361`
+  ```cpp
+  if(p.x >= bmin.x && p.x <= bmax.x &&
+     p.y >= bmin.y && p.y <= bmax.y &&
+     p.z >= bmin.z && p.z <= bmax.z) {
+      tetMesh.boundaryTypies[i] = 1;  // Pin vertex
+  }
+  ```
+- **Effect:** Vertices inside the axis-aligned bounding box are fixed (boundary type 1 = no movement).
+
+

@@ -21,10 +21,6 @@
     "frames": 100,
     "preconditioner_type": 0
   },
-  "ground": {
-    "normal": [0.0, 1.0, 0.0],
-    "offset": -1000.0
-  },
   "objects": [
     {
       "is_obstacle": true,
