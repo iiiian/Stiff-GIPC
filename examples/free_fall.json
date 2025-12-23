@@ -28,7 +28,8 @@
   "objects": [
     {
       "is_obstacle": true,
-      "mesh_msh": "examples/ground_plane.msh",
+      "mesh_msh": "output/ground_plane_sorted.16.msh",
+      "part_file": "output/ground_plane_sorted.16.part",
       "young_modulus": 10000.0,
       "transform": {
         "scale": 1.0,
@@ -39,7 +40,8 @@
     },
     {
       "is_obstacle": false,
-      "mesh_msh": "examples/bar_width_15_1_1_num_75_5_5.msh",
+      "mesh_msh": "output/bar_width_15_1_1_num_75_5_5_sorted.16.msh",
+      "part_file": "output/bar_width_15_1_1_num_75_5_5_sorted.16.part",
       "young_modulus": 10000.0,
       "transform": {
         "scale": 0.1,

@@ -25,8 +25,8 @@ find_package(nlohmann_json REQUIRED)
 find_package(argparse REQUIRED)
 find_package(CUDAToolkit REQUIRED)
 
-# add third-party libraries
-add_subdirectory("StiffGIPC/MshIO")
+# add third-party libraries / helpers
+add_subdirectory("MshHelper")
 
 # add external libraries
 if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
@@ -70,7 +70,7 @@ target_link_libraries(gipc PRIVATE cusparse cublas cusolver cudart_static)
 target_link_libraries(gipc PRIVATE metis_partition CUDA::cudart)
 target_link_libraries(gipc PRIVATE Eigen3::Eigen TBB::tbb)
 target_link_libraries(gipc PRIVATE nlohmann_json::nlohmann_json argparse::argparse)
-target_link_libraries(gipc PRIVATE mshio::mshio)
+target_link_libraries(gipc PRIVATE msh_helper)
 
 target_compile_features(gipc PRIVATE cxx_std_17)
 

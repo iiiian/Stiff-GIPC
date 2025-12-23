@@ -6,6 +6,7 @@
 #include <GIPC.cuh>
 #include <argparse/argparse.hpp>
 #include <gipc/utils/json.h>
+#include <metis_sort.h>
 
 #include "cuda_tools/cuda_tools.h"
 #include "femEnergy.cuh"
@@ -20,11 +21,77 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace fs = std::filesystem;
+
+// MAS preconditioner setup code copied verbatimly from the original gl_main.cu.
+// TODO: understand how this works.
+void setMAS_partition(tetrahedra_obj& tetMesh)
+{
+    tetMesh.partId_map_real.assign(tetMesh.part_offset * BANKSIZE, -1);
+    tetMesh.real_map_partId.resize(tetMesh.partId.size());
+
+    int index = 0;
+    for(int i = 0; i < tetMesh.partId.size(); i++)
+    {
+        tetMesh.partId_map_real[BANKSIZE * tetMesh.partId[i] + index] = i;
+        index++;
+        if(i <= tetMesh.partId.size() - 2)
+        {
+            if(tetMesh.partId[i + 1] != tetMesh.partId[i])
+            {
+                index = 0;
+            }
+        }
+    }
+
+    index = 0;
+    for(int i = 0; i < tetMesh.partId_map_real.size(); i++)
+    {
+        if(tetMesh.partId_map_real[i] == index)
+        {
+            tetMesh.real_map_partId[index] = i;
+            index++;
+        }
+    }
+}
+
+int run_sort_dir(const fs::path& input_dir, const fs::path& output_dir)
+{
+    if(!fs::exists(input_dir) || !fs::is_directory(input_dir))
+    {
+        throw std::runtime_error("Sort input_dir is not a directory: "
+                                 + input_dir.string());
+    }
+
+    fs::create_directories(output_dir);
+
+    std::vector<fs::path> msh_files;
+    for(const auto& entry : fs::directory_iterator(input_dir))
+    {
+        if(entry.is_regular_file() && entry.path().extension() == ".msh")
+        {
+            msh_files.push_back(entry.path());
+        }
+    }
+    std::sort(msh_files.begin(), msh_files.end());
+
+    if(msh_files.empty())
+    {
+        throw std::runtime_error("No .msh files found in: " + input_dir.string());
+    }
+
+    for(const auto& mesh_path : msh_files)
+    {
+        metis_sort(mesh_path.string(), 3, output_dir.string());
+    }
+
+    return 0;
+}
 
 void Init_CUDA()
 {
@@ -125,6 +192,7 @@ void initFEM(tetrahedra_obj& mesh, const GIPC& ipc)
         mesh.volum.push_back(vlm);
 
 
+        // These are not used anywhere. Probably legacy.
         double lengthRateLame =
             mesh.vert_youngth_modules[i] / (2 * (1 + ipc.PoissonRate));
         double volumeRateLame = mesh.vert_youngth_modules[i] * ipc.PoissonRate
@@ -173,12 +241,37 @@ fs::path frame_obj_path(const fs::path& dir, int frame)
 int main(int argc, char** argv)
 {
     argparse::ArgumentParser program("gipc");
-    program.add_argument("-j", "--json").required();
+    program.add_argument("-j", "--json");
+    program.add_argument("--sort").help(
+        "offline metis sort mode: --sort <input_dir> --output <output_dir>");
     program.add_argument("-o", "--output").required();
-    program.parse_args(argc, argv);
+    try
+    {
+        program.parse_args(argc, argv);
+    }
+    catch(const std::exception& err)
+    {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
+        return 1;
+    }
+
+    const auto output_dir = program.get<std::string>("--output");
+
+    if(program.is_used("--sort"))
+    {
+        const auto input_dir = program.get<std::string>("--sort");
+        return run_sort_dir(input_dir, output_dir);
+    }
+
+    if(!program.is_used("--json"))
+    {
+        std::cerr << "Missing required argument: --json\n";
+        std::cerr << program;
+        return 1;
+    }
 
     const auto scene_path = program.get<std::string>("--json");
-    const auto output_dir = program.get<std::string>("--output");
 
     gipc::Json scene = gipc::Json::parse(std::ifstream(scene_path));
 
@@ -197,10 +290,6 @@ int main(int argc, char** argv)
     const int frames = scene.at("simulation").at("frames").get<int>();
     const int preconditioner_type =
         scene.at("simulation").at("preconditioner_type").get<int>();
-    if(preconditioner_type != 0)
-    {
-        throw std::runtime_error("Only preconditioner_type=0 is supported by this CLI");
-    }
     ipc.pcg_data.P_type = preconditioner_type;
 
     // This call stores a reference to d_tetMesh.
@@ -210,6 +299,7 @@ int main(int argc, char** argv)
     for(const auto& obj : objects)
     {
         const auto  mesh_path     = obj.at("mesh_msh").get<std::string>();
+        const auto  part_file     = obj.at("part_file").get<std::string>();
         const bool  is_obstacle   = obj.at("is_obstacle").get<bool>();
         const auto  young_modulus = obj.at("young_modulus").get<double>();
         const auto  transform     = read_transform(obj.at("transform"));
@@ -224,12 +314,27 @@ int main(int argc, char** argv)
         tetMesh.load_tetrahedraMesh(
             mesh_path, transform, young_modulus, gipc::BodyType::FEM, boundary);
 
+        // If precondition type !=0, we need to load part file for MAS preconditioner.
+        // if type == 0, this is a simple diagonal preconditioner.
+        // see gipc.cu.
+        if(preconditioner_type != 0)
+        {
+            // This file map vertices to MAS parts.
+            if(!tetMesh.load_parts(part_file))
+            {
+                throw std::runtime_error("Failed to load part file: " + part_file);
+            }
+        }
+
         const int v_end = static_cast<int>(tetMesh.vertexes.size());
 
         if(is_obstacle)
         {
             for(int i = v_begin; i < v_end; ++i)
             {
+                // By default this is 0 (free).
+                // Set to 1 (fixed).
+                // 2 should be motor?
                 tetMesh.boundaryTypies[i] = 1;
             }
         }
@@ -239,6 +344,7 @@ int main(int argc, char** argv)
             tetMesh.velocities[i] = init_vel;
         }
 
+        // Pin vertices inside box selection.
         for(const auto& box : pin_boxes)
         {
             const double3 bmin = read_vec3(box.at("min"));
@@ -255,6 +361,12 @@ int main(int argc, char** argv)
         }
     }
 
+    // MAS preconditioner prep.
+    if(preconditioner_type != 0)
+    {
+        setMAS_partition(tetMesh);
+    }
+
     tetMesh.getSurface();
     initFEM(tetMesh, ipc);
 
@@ -262,8 +374,8 @@ int main(int argc, char** argv)
                                 tetMesh.tetrahedraNum,
                                 tetMesh.triangleNum,
                                 tetMesh.softNum,
-                                static_cast<int>(tetMesh.tri_edges.size()),
-                                static_cast<int>(tetMesh.abd_fem_count_info.total_body_num()));
+                                tetMesh.tri_edges.size(),
+                                tetMesh.abd_fem_count_info.total_body_num());
 
     CUDA_SAFE_CALL(cudaMemcpy(d_tetMesh.masses,
                               tetMesh.masses.data(),
@@ -306,17 +418,7 @@ int main(int argc, char** argv)
                               tetMesh.vertexNum * sizeof(double3),
                               cudaMemcpyHostToDevice));
 
-    if(!tetMesh.tri_edges.empty())
-    {
-        CUDA_SAFE_CALL(cudaMemcpy(d_tetMesh.tri_edges,
-                                  tetMesh.tri_edges.data(),
-                                  tetMesh.tri_edges.size() * sizeof(uint2),
-                                  cudaMemcpyHostToDevice));
-        CUDA_SAFE_CALL(cudaMemcpy(d_tetMesh.tri_edge_adj_vertex,
-                                  tetMesh.tri_edges_adj_points.data(),
-                                  tetMesh.tri_edges.size() * sizeof(uint2),
-                                  cudaMemcpyHostToDevice));
-    }
+    // TriMesh setup is removed here.
 
     CUDA_SAFE_CALL(cudaMemcpy(d_tetMesh.body_id_to_boundary_type,
                               tetMesh.body_id_to_is_fixed.data(),
@@ -370,6 +472,43 @@ int main(int argc, char** argv)
                               cudaMemcpyHostToDevice));
 
     ipc.initBVH(d_tetMesh.BoundaryType, d_tetMesh.point_id_to_body_id);
+
+    if(preconditioner_type != 0)
+    {
+        int neighborListSize = tetMesh.getVertNeighbors();
+        ipc.pcg_data.MP.initPreconditioner_Neighbor(ipc.vertexNum - tetMesh.abd_vertexOffset,
+                                                    tetMesh.abd_vertexOffset,
+                                                    neighborListSize,
+                                                    ipc._collisonPairs,
+                                                    tetMesh.part_offset * BANKSIZE);
+
+        ipc.pcg_data.MP.neighborListSize = neighborListSize;
+
+        CUDA_SAFE_CALL(cudaMemcpy(ipc.pcg_data.MP.d_neighborListInit,
+                                  tetMesh.neighborList.data(),
+                                  neighborListSize * sizeof(unsigned int),
+                                  cudaMemcpyHostToDevice));
+        CUDA_SAFE_CALL(cudaMemcpy(ipc.pcg_data.MP.d_neighborStart,
+                                  tetMesh.neighborStart.data(),
+                                  (ipc.vertexNum - tetMesh.abd_vertexOffset) * sizeof(unsigned int),
+                                  cudaMemcpyHostToDevice));
+        CUDA_SAFE_CALL(cudaMemcpy(ipc.pcg_data.MP.d_neighborNumInit,
+                                  tetMesh.neighborNum.data(),
+                                  (ipc.vertexNum - tetMesh.abd_vertexOffset) * sizeof(unsigned int),
+                                  cudaMemcpyHostToDevice));
+
+        CUDA_SAFE_CALL(cudaMemcpy(ipc.pcg_data.MP.d_partId_map_real,
+                                  tetMesh.partId_map_real.data(),
+                                  tetMesh.part_offset * BANKSIZE * sizeof(int),
+                                  cudaMemcpyHostToDevice));
+
+        CUDA_SAFE_CALL(cudaMemcpy(ipc.pcg_data.MP.d_real_map_partId,
+                                  tetMesh.real_map_partId.data(),
+                                  tetMesh.real_map_partId.size() * sizeof(int),
+                                  cudaMemcpyHostToDevice));
+
+        ipc.pcg_data.MP.initPreconditioner_Matrix();
+    }
 
     CUDA_SAFE_CALL(cudaMemcpy(d_tetMesh.rest_vertexes,
                               d_tetMesh.o_vertexes,

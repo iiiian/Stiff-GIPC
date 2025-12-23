@@ -8,7 +8,7 @@
 
 #include <iostream>
 #include "load_mesh.h"
-#include "msh_reader.hpp"
+#include "msh_io.hpp"
 #include <unordered_map>
 #include <fstream>
 #include <set>
@@ -489,7 +489,7 @@ bool tetrahedra_obj::load_tetrahedraMesh(const std::string&     filename,
 
     Eigen::MatrixXd V;
     Eigen::MatrixXi T;
-    gipc::io::MshReader::load_tet_mesh(filename, V, T);
+    gipc::io::load_tet_mesh(filename, V, T);
 
     const int nodeNumber    = static_cast<int>(V.rows());
     const int elementNumber = static_cast<int>(T.rows());
