@@ -12,12 +12,13 @@
 
 
 template <int ROWS, int COLS>
-__device__ inline void write_triplet_fem(Eigen::Matrix3d* triplet_value,
-                                         int*             row_ids,
-                                         int*             col_ids,
-                                         const unsigned int*       node_index,
-                                         const double     input[ROWS][COLS],
-                                         const int&       offset)
+// Write upper-triangular 3x3 block triplets for FEM matrix assembly.
+__device__ inline void write_triplet_fem(Eigen::Matrix3d*    triplet_value,
+                                         int*                row_ids,
+                                         int*                col_ids,
+                                         const unsigned int* node_index,
+                                         const double        input[ROWS][COLS],
+                                         const int&          offset)
 {
     int rown = ROWS / 3;
     int coln = COLS / 3;
@@ -26,8 +27,8 @@ __device__ inline void write_triplet_fem(Eigen::Matrix3d* triplet_value,
     {
         for(int jj = ii; jj < coln; jj++)
         {
-            int row              = node_index[ii];
-            int col              = node_index[jj];
+            int row = node_index[ii];
+            int col = node_index[jj];
 
             if(row <= col)
             {
@@ -56,13 +57,13 @@ __device__ inline void write_triplet_fem(Eigen::Matrix3d* triplet_value,
                 }
             }
             kk++;
-            
         }
     }
 }
 
 using namespace Eigen;
 template <typename Scalar, int size>
+// Project symmetric matrix to PSD by clamping negative eigenvalues.
 __device__ void makePDSNK(Eigen::Matrix<Scalar, size, size>& symMtr)
 {
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix<Scalar, size, size>> eigenSolver(symMtr);
@@ -86,6 +87,7 @@ __device__ void makePDSNK(Eigen::Matrix<Scalar, size, size>& symMtr)
 
 namespace LibShell
 {
+// Build a 3x3 skew-symmetric cross-product matrix for vector v.
 __device__ __host__ static Eigen::Matrix3d crossMatrix(Eigen::Vector3d v)
 {
     Eigen::Matrix3d ret;
@@ -93,12 +95,14 @@ __device__ __host__ static Eigen::Matrix3d crossMatrix(Eigen::Vector3d v)
     return ret;
 }
 
+// Compute the adjugate matrix for a 2x2 matrix.
 __device__ __host__ static Eigen::Matrix2d adjugate(Eigen::Matrix2d M)
 {
     Eigen::Matrix2d ret;
     ret << M(1, 1), -M(0, 1), -M(1, 0), M(0, 0);
     return ret;
 }
+// Compute signed angle between v and w around axis (optionally with derivatives).
 __device__ __host__ static double angle(const Eigen::Vector3d& v,
                                         const Eigen::Vector3d& w,
                                         const Eigen::Vector3d& axis,
@@ -134,6 +138,7 @@ __device__ __host__ static double angle(const Eigen::Vector3d& v,
 
     return theta;
 }
+// Compute dihedral angle across edge (q0,q1) with opposite vertices (q2,q3).
 __device__ __host__ static double edgeTheta(const Eigen::Vector3d& q0,
                                             const Eigen::Vector3d& q1,
                                             const Eigen::Vector3d& q2,
@@ -253,6 +258,7 @@ __device__ __host__ static double edgeTheta(const Eigen::Vector3d& q0,
 };  // namespace LibShell
 
 
+// Compute 2D rest-shape edge matrix Dm for a triangle.
 __device__ __host__ void __calculateDm2D_double(const double3* vertexes,
                                                 const uint3&   index,
                                                 __GEIGEN__::Matrix2x2d& M)
@@ -301,6 +307,7 @@ __device__ __host__ void __calculateDm2D_double(const double3* vertexes,
     __GEIGEN__::__set_Mat2x2_val_column(M, u0, u1);
 }
 
+// Compute 2D deformed edge matrix Ds for a triangle (3x2).
 __device__ __host__ void __calculateDs2D_double(const double3* vertexes,
                                                 const uint3&   index,
                                                 __GEIGEN__::Matrix3x2d& M)
@@ -321,6 +328,7 @@ __device__ __host__ void __calculateDs2D_double(const double3* vertexes,
     M.m[2][0] = o1z;
     M.m[2][1] = o2z;
 }
+// Compute 3D deformed edge matrix Ds for a tetrahedron (3x3).
 __device__ __host__ void __calculateDms3D_double(const double3* vertexes,
                                                  const uint4&   index,
                                                  __GEIGEN__::Matrix3x3d& M)
@@ -348,6 +356,7 @@ __device__ __host__ void __calculateDms3D_double(const double3* vertexes,
     M.m[2][1] = o2z;
     M.m[2][2] = o3z;
 }
+// Compute first Piola stress dE/dF for Baraff-Witkin stretch/shear cloth energy.
 __device__ __GEIGEN__::Matrix3x2d __computePEPF_BaraffWitkinStretch_double(
     const __GEIGEN__::Matrix3x2d& F, double stretchStiff, double shearStiff, double strainRate)
 {
@@ -401,6 +410,7 @@ __device__ __GEIGEN__::Matrix3x2d __computePEPF_BaraffWitkinStretch_double(
         __GEIGEN__::__S_Mat3x2_multiply(PEPF_stretch, stretchStiff));
     return PEPF;
 }
+// Compute first Piola stress dE/dF for stable Neo-Hookean variant 2 (3D).
 __device__ __GEIGEN__::Matrix3x3d __computePEPF_StableNHK3D2_double(
     const __GEIGEN__::Matrix3x3d& F, const double& I2, const double& I3, double lengthRate, double volumRate)
 {
@@ -429,12 +439,10 @@ __device__ __GEIGEN__::Matrix3x3d __computePEPF_StableNHK3D2_double(
     return PEPF;
 }
 
+// Compute first Piola stress dE/dF for stable Neo-Hookean variant 1 (3D).
+// TODO: change to standard NK with log term.
 __device__ __GEIGEN__::Matrix3x3d __computePEPF_StableNHK3D1_double(
-    const __GEIGEN__::Matrix3x3d& F,
-    const double& I2,
-    const double& I3,
-    double                        lengthRate,
-    double                        volumRate)
+    const __GEIGEN__::Matrix3x3d& F, const double& I2, const double& I3, double lengthRate, double volumRate)
 {
     double                 u = lengthRate, r = volumRate;
     __GEIGEN__::Matrix3x3d pI3pF;
@@ -458,6 +466,7 @@ __device__ __GEIGEN__::Matrix3x3d __computePEPF_StableNHK3D1_double(
     return PEPF;
 }
 
+// Compute first Piola stress dE/dF for ARAP energy (F-R).
 __device__ Eigen::Matrix<double, 3, 3> computePEPF_ARAP_double(
     const Eigen::Matrix<double, 3, 3>& F,
     const Eigen::Matrix<double, 3, 3>& U,
@@ -470,6 +479,7 @@ __device__ Eigen::Matrix<double, 3, 3> computePEPF_ARAP_double(
     return lengthRate * g;
 }
 
+// Compute projected (PSD) ARAP Hessian in deformation-gradient space (3D).
 __device__ Eigen::Matrix<double, 9, 9> project_ARAP_H_3D(
     const Eigen::Matrix<double, 3, 1>& Sigma,
     const Eigen::Matrix<double, 3, 3>& U,
@@ -532,6 +542,7 @@ __device__ Eigen::Matrix<double, 9, 9> project_ARAP_H_3D(
     return lengthRate * SH;
 }
 
+// Project Baraff-Witkin stretch Hessian in deformation-gradient space (2D/cloth).
 __device__ __GEIGEN__::Matrix6x6d __project_BaraffWitkinStretch_H(const __GEIGEN__::Matrix3x2d& F,
                                                                   double strainRate)
 {
@@ -628,6 +639,7 @@ __device__ __GEIGEN__::Matrix6x6d __project_BaraffWitkinStretch_H(const __GEIGEN
 }
 
 
+// Project Baraff-Witkin shear Hessian in deformation-gradient space (2D/cloth).
 __device__ __GEIGEN__::Matrix6x6d __project_BaraffWitkinShear_H(const __GEIGEN__::Matrix3x2d& F)
 {
 
@@ -705,6 +717,8 @@ __device__ __GEIGEN__::Matrix6x6d __project_BaraffWitkinShear_H(const __GEIGEN__
     return Tmp;
 }
 
+// Project stable Neo-Hookean Hessian to PSD in deformation-gradient space (3D).
+// TODO: change to standard NK with log term.
 __device__ void __project_StabbleNHK_H_3D(const double3&                sigma,
                                           const __GEIGEN__::Matrix3x3d& U,
                                           const __GEIGEN__::Matrix3x3d& V,
@@ -820,6 +834,7 @@ __device__ void __project_StabbleNHK_H_3D(const double3&                sigma,
 }
 
 
+// Project ANIOSI5 (anisotropic) Hessian in deformation-gradient space (3D).
 __device__ __GEIGEN__::Matrix9x9d __project_ANIOSI5_H_3D(const __GEIGEN__::Matrix3x3d& F,
                                                          const __GEIGEN__::Matrix3x3d& sigma,
                                                          const __GEIGEN__::Matrix3x3d& U,
@@ -925,6 +940,7 @@ __device__ __GEIGEN__::Matrix9x9d __project_ANIOSI5_H_3D(const __GEIGEN__::Matri
     return H;
 }
 
+// Compute first Piola stress dE/dF for anisotropic 3D fiber energy.
 __device__ __GEIGEN__::Matrix3x3d __computePEPF_Aniostropic3D_double(
     const __GEIGEN__::Matrix3x3d& F, double3 fiber_direction, const double& scale, const double& contract_length)
 {
@@ -964,6 +980,7 @@ __device__ __GEIGEN__::Matrix3x3d __computePEPF_Aniostropic3D_double(
     PEPF = __GEIGEN__::__S_Mat_multiply(M_Temp1, s_temp0);
     return PEPF;
 }
+// Compute Baraff-Witkin stretch/shear energy for one triangle.
 __device__ double __cal_BaraffWitkinStretch_energy(const double3* vertexes,
                                                    const uint3&   triangle,
                                                    const __GEIGEN__::Matrix2x2d& triDmInverse,
@@ -1003,12 +1020,13 @@ __device__ double __cal_BaraffWitkinStretch_energy(const double3* vertexes,
                      + pow(sqrt(I5v) - 1, 2) + vcoeff * strainRate * pow(sqrt(I5v) - 1, 3))
               + shearhStiff * I6 * I6);
 }
+// Compute stable Neo-Hookean energy variant 2 for one tetrahedron.
 __device__ double __cal_StabbleNHK_energy2_3D(const double3* vertexes,
-                                             const uint4&   tetrahedra,
-                                             const __GEIGEN__::Matrix3x3d& DmInverse,
-                                             const double& volume,
-                                             const double& lenRate,
-                                             const double& volRate)
+                                              const uint4&   tetrahedra,
+                                              const __GEIGEN__::Matrix3x3d& DmInverse,
+                                              const double& volume,
+                                              const double& lenRate,
+                                              const double& volRate)
 {
     __GEIGEN__::Matrix3x3d Ds;
     __calculateDms3D_double(vertexes, tetrahedra, Ds);
@@ -1029,12 +1047,14 @@ __device__ double __cal_StabbleNHK_energy2_3D(const double3* vertexes,
 }
 
 
+// Compute stable Neo-Hookean energy variant 1 for one tetrahedron.
+// TODO: change to standard NK with log term.
 __device__ double __cal_StabbleNHK_energy1_3D(const double3* vertexes,
-                                             const uint4&   tetrahedra,
-                                             const __GEIGEN__::Matrix3x3d& DmInverse,
-                                             const double& volume,
-                                             const double& lenRate,
-                                             const double& volRate)
+                                              const uint4&   tetrahedra,
+                                              const __GEIGEN__::Matrix3x3d& DmInverse,
+                                              const double& volume,
+                                              const double& lenRate,
+                                              const double& volRate)
 {
     __GEIGEN__::Matrix3x3d Ds;
     __calculateDms3D_double(vertexes, tetrahedra, Ds);
@@ -1049,6 +1069,7 @@ __device__ double __cal_StabbleNHK_energy1_3D(const double3* vertexes,
     return 0.5 * (lenRate * (I2 - 3) + volRate * (Jminus1 * Jminus1)) * volume;
 }
 
+// Compute ARAP energy for one tetrahedron (penalizes deviation from best-fit rotation).
 __device__ double __cal_ARAP_energy_3D(const double3*                vertexes,
                                        const uint4&                  tetrahedra,
                                        const __GEIGEN__::Matrix3x3d& DmInverse,
@@ -1080,6 +1101,8 @@ __device__ double __cal_ARAP_energy_3D(const double3*                vertexes,
     //printf("I2   I3   ler  volr\n", I2, I3, lenRate, volRate);
 }
 
+// Compute d(vec(F))/d(x) for a tetrahedron given Dm^{-1} (9x12).
+// TODO: change to standard NK with log term.
 __device__ __GEIGEN__::Matrix9x12d __computePFDsPX3D_double(const __GEIGEN__::Matrix3x3d& InverseDm)
 {
     __GEIGEN__::Matrix9x12d matOut;
@@ -1130,6 +1153,7 @@ __device__ __GEIGEN__::Matrix9x12d __computePFDsPX3D_double(const __GEIGEN__::Ma
     return matOut;
 }
 
+// Compute d(vec(F))/d(x) for a 3x2 F with 4 vertices (6x12).
 __device__ __GEIGEN__::Matrix6x12d __computePFDsPX3D_6x12_double(const __GEIGEN__::Matrix2x2d& InverseDm)
 {
     __GEIGEN__::Matrix6x12d matOut;
@@ -1168,6 +1192,7 @@ __device__ __GEIGEN__::Matrix6x12d __computePFDsPX3D_6x12_double(const __GEIGEN_
     return matOut;
 }
 
+// Compute d(vec(F))/d(x) for a triangle deformation gradient (3x2, 6x9).
 __device__ __GEIGEN__::Matrix6x9d __computePFDsPX3D_6x9_double(const __GEIGEN__::Matrix2x2d& InverseDm)
 {
     __GEIGEN__::Matrix6x9d matOut;
@@ -1216,6 +1241,7 @@ __device__ __GEIGEN__::Matrix6x9d __computePFDsPX3D_6x9_double(const __GEIGEN__:
     return matOut;
 }
 
+// Compute d(F)/d(x) for a segment/edge stretch gradient (3x6).
 __device__ __GEIGEN__::Matrix3x6d __computePFDsPX3D_3x6_double(const double& InverseDm)
 {
     __GEIGEN__::Matrix3x6d matOut;
@@ -1232,6 +1258,7 @@ __device__ __GEIGEN__::Matrix3x6d __computePFDsPX3D_3x6_double(const double& Inv
     return matOut;
 }
 
+// Compute Dm^{-1}-term contribution to d(vec(F))/d(x) for a tet (9x12).
 __device__ __GEIGEN__::Matrix9x12d __computePFDmPX3D_double(const __GEIGEN__::Matrix12x9d& PDmPx,
                                                             const __GEIGEN__::Matrix3x3d& Ds,
                                                             const __GEIGEN__::Matrix3x3d& DmInv)
@@ -1260,6 +1287,7 @@ __device__ __GEIGEN__::Matrix9x12d __computePFDmPX3D_double(const __GEIGEN__::Ma
     return DsPDminvPx;
 }
 
+// Compute Dm^{-1}-term contribution to d(vec(F))/d(x) for a 3x2 F with 4 vertices (6x12).
 __device__ __GEIGEN__::Matrix6x12d __computePFDmPX3D_6x12_double(
     const __GEIGEN__::Matrix12x4d& PDmPx,
     const __GEIGEN__::Matrix3x2d&  Ds,
@@ -1288,6 +1316,7 @@ __device__ __GEIGEN__::Matrix6x12d __computePFDmPX3D_6x12_double(
     return DsPDminvPx;
 }
 
+// Compute Dm^{-1}-term contribution to d(F)/d(x) for a segment/edge (3x6).
 __device__ __GEIGEN__::Matrix3x6d __computePFDmPX3D_3x6_double(const __GEIGEN__::Vector6& PDmPx,
                                                                const double3& Ds,
                                                                const double& DmInv)
@@ -1309,6 +1338,7 @@ __device__ __GEIGEN__::Matrix3x6d __computePFDmPX3D_3x6_double(const __GEIGEN__:
     return DsPDminvPx;
 }
 
+// Compute Dm^{-1}-term contribution to d(vec(F))/d(x) for a triangle (6x9).
 __device__ __GEIGEN__::Matrix6x9d __computePFDmPX3D_6x9_double(
     const __GEIGEN__::Matrix9x4d& PDmPx,
     const __GEIGEN__::Matrix3x2d& Ds,
@@ -1337,6 +1367,7 @@ __device__ __GEIGEN__::Matrix6x9d __computePFDmPX3D_6x9_double(
     return DsPDminvPx;
 }
 
+// Compute d(vec(F))/d(x) for a tetrahedron given Dm^{-1} (alias of PFDsPX3D, 9x12).
 __device__ __GEIGEN__::Matrix9x12d __computePFPX3D_double(const __GEIGEN__::Matrix3x3d& InverseDm)
 {
     __GEIGEN__::Matrix9x12d matOut;
@@ -1386,16 +1417,17 @@ __device__ __GEIGEN__::Matrix9x12d __computePFPX3D_double(const __GEIGEN__::Matr
     return matOut;
 }
 
-__device__ Eigen::Matrix<double, 9,12> __computePFPX3D_Eigen_double(const __GEIGEN__::Matrix3x3d& InverseDm)
+// Eigen version of d(vec(F))/d(x) for a tetrahedron (9x12) used in Eigen-based assembly.
+__device__ Eigen::Matrix<double, 9, 12> __computePFPX3D_Eigen_double(const __GEIGEN__::Matrix3x3d& InverseDm)
 {
     Eigen::Matrix<double, 9, 12> matOut;
     matOut.setZero();
     double m = InverseDm.m[0][0], n = InverseDm.m[0][1], o = InverseDm.m[0][2];
     double p = InverseDm.m[1][0], q = InverseDm.m[1][1], r = InverseDm.m[1][2];
     double s = InverseDm.m[2][0], t = InverseDm.m[2][1], u = InverseDm.m[2][2];
-    double t1       = -(m + p + s);
-    double t2       = -(n + q + t);
-    double t3       = -(o + r + u);
+    double t1     = -(m + p + s);
+    double t2     = -(n + q + t);
+    double t3     = -(o + r + u);
     matOut(0, 0)  = t1;
     matOut(0, 3)  = m;
     matOut(0, 6)  = p;
@@ -1435,6 +1467,7 @@ __device__ Eigen::Matrix<double, 9,12> __computePFPX3D_Eigen_double(const __GEIG
     return matOut;
 }
 
+// Build PSD-projected Stable NHK2 Hessian (9x9) in deformation-gradient space.
 __device__ void __project_StabbleNHK_H_3D2_makePD(Matrix<double, 9, 9>& Hq,
                                                   const __GEIGEN__::Matrix3x3d& F,
                                                   const double& Ic,
@@ -1589,11 +1622,13 @@ __device__ void __project_StabbleNHK_H_3D2_makePD(Matrix<double, 9, 9>& Hq,
 }
 
 
-
-__device__ void BuildTwistAndFlipEigenvectors(const Matrix3d& U, const Matrix3d& V, Matrix<double, 9, 9>& Q)
+// Construct twist and flip eigenvectors for 3D corotational-style Hessian projection.
+__device__ void BuildTwistAndFlipEigenvectors(const Matrix3d&       U,
+                                              const Matrix3d&       V,
+                                              Matrix<double, 9, 9>& Q)
 {
-    const double scale = 1.0 / std::sqrt(2.0);
-    const Matrix3d      sV    = scale * V;
+    const double   scale = 1.0 / std::sqrt(2.0);
+    const Matrix3d sV    = scale * V;
 
     using M3 = Eigen::Matrix<double, 3, 3, Eigen::ColMajor>;
 
@@ -1638,6 +1673,7 @@ __device__ void BuildTwistAndFlipEigenvectors(const Matrix3d& U, const Matrix3d&
     Eigen::Map<M3>(Q.data() + 45) = E + F;
 }
 
+// Build PSD-projected Stable NHK1 Hessian (9x9) in deformation-gradient space.
 __device__ Matrix<double, 9, 9> __project_StabbleNHK_H_3D1_makePD(
     Eigen::Matrix<double, 9, 9>&  H,
     double                        I3,
@@ -1716,20 +1752,22 @@ __device__ Matrix<double, 9, 9> __project_StabbleNHK_H_3D1_makePD(
     H = eigenvectors * eigenvalues.asDiagonal() * eigenvectors.transpose();
 }
 
+// Assemble per-tet FEM gradient and Hessian triplets (tet mesh).
 __global__ void _calculate_fem_gradient_hessian(__GEIGEN__::Matrix3x3d* DmInverses,
                                                 const double3* vertexes,
                                                 const uint4*   tetrahedras,
-                                                const double*    volume,
-                                                double3*         gradient,
-                                                int              tetrahedraNum,
-                                                const double*    lenRate,
-                                                const double*    volRate,
+                                                const double*  volume,
+                                                double3*       gradient,
+                                                int            tetrahedraNum,
+                                                const double*  lenRate,
+                                                const double*  volRate,
                                                 //uint4*           tet_ids,
                                                 int              global_offset,
                                                 Eigen::Matrix3d* triplet_values,
                                                 int*             row_ids,
                                                 int*             col_ids,
-                                                double IPC_dt,int global_hessian_fem_offset)
+                                                double           IPC_dt,
+                                                int global_hessian_fem_offset)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if(idx >= tetrahedraNum)
@@ -1774,15 +1812,13 @@ __global__ void _calculate_fem_gradient_hessian(__GEIGEN__::Matrix3x3d* DmInvers
 #endif
 
 
-    
-
     Eigen::Vector<double, 9> pepf = __GEIGEN__::__Mat3x3_to_vec9_Eigen_double(PEPF);
 
 
     //__GEIGEN__::Matrix12x9d PFPXTranspose = __GEIGEN__::__Transpose9x12(PFPX);
     Eigen::Vector<double, 12> f = IPC_dt * IPC_dt * volume[idx] * PFPX.transpose() * pepf;
-        //__GEIGEN__::__s_vec12_multiply(__GEIGEN__::__M12x9_v9_multiply(PFPXTranspose, pepf),
-                                       //IPC_dt * IPC_dt * volume[idx]);
+    //__GEIGEN__::__s_vec12_multiply(__GEIGEN__::__M12x9_v9_multiply(PFPXTranspose, pepf),
+    //IPC_dt * IPC_dt * volume[idx]);
     //printf("%f  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\n", f.v[0], f.v[1], f.v[2], f.v[3], f.v[4], f.v[5], f.v[6], f.v[7], f.v[8], f.v[9], f.v[10], f.v[11]);
 
     {
@@ -1807,7 +1843,7 @@ __global__ void _calculate_fem_gradient_hessian(__GEIGEN__::Matrix3x3d* DmInvers
     Matrix<double, 9, 9> Hq;
     __project_StabbleNHK_H_3D2_makePD(Hq, F, I2, I3, lenRate[idx], volRate[idx]);
 #elif USE_SNK1
-    Eigen::Matrix<double, 9,9> Hq;
+    Eigen::Matrix<double, 9, 9> Hq;
     __project_StabbleNHK_H_3D1_makePD(Hq, I3, lenRate[idx], volRate[idx], F);
 #else
     Eigen::Matrix<double, 9, 9> Hq = project_ARAP_H_3D(SS, UU, VV, lenRate[idx]);
@@ -1823,9 +1859,9 @@ __global__ void _calculate_fem_gradient_hessian(__GEIGEN__::Matrix3x3d* DmInvers
 
 
     unsigned int fem_index[4] = {tetrahedras[idx].x + global_hessian_fem_offset,
-                        tetrahedras[idx].y + global_hessian_fem_offset,
-                        tetrahedras[idx].z + global_hessian_fem_offset,
-                        tetrahedras[idx].w + global_hessian_fem_offset};
+                                 tetrahedras[idx].y + global_hessian_fem_offset,
+                                 tetrahedras[idx].z + global_hessian_fem_offset,
+                                 tetrahedras[idx].w + global_hessian_fem_offset};
     //write_triplet_fem<12, 12>(
     //    triplet_values, row_ids, col_ids, fem_index, H.m, global_offset + 16 * idx);
 
@@ -1835,8 +1871,8 @@ __global__ void _calculate_fem_gradient_hessian(__GEIGEN__::Matrix3x3d* DmInvers
     {
         for(int jj = ii; jj < 4; jj++)
         {
-            int row                      = fem_index[ii];
-            int col                      = fem_index[jj];
+            int row = fem_index[ii];
+            int col = fem_index[jj];
             if(row <= col)
             {
                 row_ids[triplet_offset + kk] = row;
@@ -1856,6 +1892,7 @@ __global__ void _calculate_fem_gradient_hessian(__GEIGEN__::Matrix3x3d* DmInvers
     }
 }
 
+// Strain-limiting barrier first derivative g(s) for singular value s.
 __device__ __host__ double g_sl(double s, double sLimit, double sHat)
 {
     double a = sHat - s;
@@ -1863,6 +1900,7 @@ __device__ __host__ double g_sl(double s, double sLimit, double sHat)
            / ((sLimit - sHat) * (sLimit - sHat));
 }
 
+// Strain-limiting barrier second derivative h(s) for singular value s.
 __device__ __host__ double h_sl(double s, double sLimit, double sHat)
 {
     double a = sHat - s;
@@ -1873,6 +1911,7 @@ __device__ __host__ double h_sl(double s, double sLimit, double sHat)
 }
 
 
+// Compute dE/dF for 2D strain-limiting barrier using per-triangle SVD data.
 __device__ Matrix<double, 3, 2> computePEPF_strain_limit(Eigen::Matrix3d& U3x2,
                                                          Eigen::Matrix2d& V3x2,
                                                          Eigen::Vector2d& S3x2,
@@ -1896,6 +1935,7 @@ __device__ Matrix<double, 3, 2> computePEPF_strain_limit(Eigen::Matrix3d& U3x2,
     return db_div_dF;
 }
 
+// Compute d2E/dF2 for 2D strain-limiting barrier using per-triangle SVD data.
 __device__ Matrix<double, 6, 6> computeP2EPF2_strain_limit(Eigen::Matrix3d& U3x2,
                                                            Eigen::Matrix2d& V3x2,
                                                            Eigen::Vector2d& S3x2,
@@ -2021,6 +2061,7 @@ __device__ Matrix<double, 6, 6> computeP2EPF2_strain_limit(Eigen::Matrix3d& U3x2
 }
 
 
+// Assemble per-triangle strain-limiting gradient and Hessian contributions.
 __global__ void _calculate_triangle_fem_strain_limiting_gradient_hessian(
     __GEIGEN__::Matrix2x2d* trimInverses,
     const double3*          vertexes,
@@ -2121,6 +2162,7 @@ __global__ void _calculate_triangle_fem_strain_limiting_gradient_hessian(
     }
 }
 
+// Compute per-triangle deformation gradients F (3x2) for visualization/debug.
 __global__ void _calculate_triangle_fem_deformationF(__GEIGEN__::Matrix2x2d* trimInverses,
                                                      const double3* vertexes,
                                                      const uint3*   triangles,
@@ -2143,6 +2185,7 @@ __global__ void _calculate_triangle_fem_deformationF(__GEIGEN__::Matrix2x2d* tri
     F3x2[idx] = F;
 }
 
+// Assemble per-triangle FEM gradient and Hessian triplets (cloth mesh).
 __global__ void _calculate_triangle_fem_gradient_hessian(__GEIGEN__::Matrix2x2d* trimInverses,
                                                          const double3* vertexes,
                                                          const uint3* triangles,
@@ -2214,6 +2257,7 @@ __global__ void _calculate_triangle_fem_gradient_hessian(__GEIGEN__::Matrix2x2d*
         triplet_values, row_ids, col_ids, global_fem_offset, H.m, global_offset + idx * 6);
 }
 
+// Assemble per-triangle FEM gradient (cloth mesh).
 __global__ void _calculate_triangle_fem_gradient(__GEIGEN__::Matrix2x2d* trimInverses,
                                                  const double3* vertexes,
                                                  const uint3*   triangles,
@@ -2261,14 +2305,16 @@ __global__ void _calculate_triangle_fem_gradient(__GEIGEN__::Matrix2x2d* trimInv
     }
 }
 
+// Assemble per-tet FEM gradient only (tet mesh).
+// TODO: change to standard NK with log term.
 __global__ void _calculate_fem_gradient(__GEIGEN__::Matrix3x3d* DmInverses,
                                         const double3*          vertexes,
                                         const uint4*            tetrahedras,
                                         const double*           volume,
                                         double3*                gradient,
                                         int                     tetrahedraNum,
-                                        double*                  lenRate,
-                                        double*                  volRate,
+                                        double*                 lenRate,
+                                        double*                 volRate,
                                         double                  dt)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -2282,8 +2328,8 @@ __global__ void _calculate_fem_gradient(__GEIGEN__::Matrix3x3d* DmInverses,
     __GEIGEN__::Matrix3x3d F;
     __M_Mat_multiply(Ds, DmInverses[idx], F);
 
-    double                 I2 = __GEIGEN__::__squaredNorm(F);
-    double                 I3 = __GEIGEN__::__Determiant(F);
+    double I2 = __GEIGEN__::__squaredNorm(F);
+    double I3 = __GEIGEN__::__Determiant(F);
 #ifdef USE_SNK2
     __GEIGEN__::Matrix3x3d PEPF =
         __computePEPF_StableNHK3D2_double(F, I2, I3, lenRate[idx], volRate[idx]);
@@ -2347,7 +2393,8 @@ __global__ void _calculate_fem_gradient(__GEIGEN__::Matrix3x3d* DmInverses,
 }
 
 
-
+// Assemble bending energy gradient and Hessian triplets for shell/cloth edges.
+// TODO: change to standard NK with log term.
 __global__ void _calculate_bending_gradient_hessian(const double3* vertexes,
                                                     const double3* rest_vertexes,
                                                     const uint2* edges,
@@ -2376,8 +2423,8 @@ __global__ void _calculate_bending_gradient_hessian(const double3* vertexes,
         {
             for(int jj = ii; jj < 4; jj++)
             {
-                row_ids[gtrioff + kk]        = 0;
-                col_ids[gtrioff + kk]        = 0;
+                row_ids[gtrioff + kk] = 0;
+                col_ids[gtrioff + kk] = 0;
                 triplet_values[gtrioff + kk].setZero();
                 kk++;
             }
@@ -2484,6 +2531,7 @@ __global__ void _calculate_bending_gradient_hessian(const double3* vertexes,
 }
 
 
+// Compute strain-limiting energy from two singular values for one triangle.
 __device__ double __cal_strainL_energy(Eigen::Vector2d& sigma, double area)
 {
     double slimit   = 1.1;
@@ -2505,6 +2553,7 @@ __device__ double __cal_strainL_energy(Eigen::Vector2d& sigma, double area)
 }
 
 
+// Compute bending energy for one edge with adjacent triangles.
 __device__ double __cal_bending_energy(const double3* vertexes,
                                        const double3* rest_vertexes,
                                        const uint2&   edge,
@@ -2548,6 +2597,7 @@ __device__ double __cal_bending_energy(const double3* vertexes,
 }
 
 
+// Compute absolute tetrahedron volume from its 4 vertex positions.
 double calculateVolum(const double3* vertexes, const uint4& index)
 {
     int     id0 = 0;
@@ -2577,6 +2627,7 @@ double calculateVolum(const double3* vertexes, const uint4& index)
     return volum > 0 ? volum : -volum;
 }
 
+// Compute triangle area from its 3 vertex positions.
 double calculateArea(const double3* vertexes, const uint3& index)
 {
     //double a = __GEIGEN__::__norm(__GEIGEN__::__minus(vertexes[index.y], vertexes[index.x]));
