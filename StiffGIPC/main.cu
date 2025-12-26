@@ -145,9 +145,11 @@ void apply_settings(GIPC&             ipc,
 
     collision_detection_buff_scale =
         s.at("collision_detection_buff_scale").get<double>();
-    motion_rate                 = s.at("motion_rate").get<double>();
-    ipc.IPC_dt                  = s.at("ipc_time_step").get<double>();
-    ipc.pcg_threshold           = s.at("pcg_solver_threshold").get<double>();
+    motion_rate           = s.at("motion_rate").get<double>();
+    ipc.IPC_dt            = s.at("ipc_time_step").get<double>();
+    ipc.pcg_rel_threshold = s.at("pcg_rel_threshold").get<double>();
+    ipc.pcg_abs_threshold = s.at("pcg_abs_threshold").get<double>();
+    ipc.pcg_use_preconditioned_norm = s.at("pcg_use_preconditioned_norm").get<bool>();
     ipc.Newton_solver_threshold = s.at("Newton_solver_threshold").get<double>();
     ipc.relative_dhat           = s.at("IPC_ralative_dHat").get<double>();
 
@@ -162,7 +164,7 @@ void apply_settings(GIPC&             ipc,
     // For cloth.
     ipc.stretchStiff = ipc.clothYoungModulus / (2 * (1 + ipc.PoissonRate));
     ipc.bendStiff    = ipc.bendYoungModulus * pow(ipc.clothThickness, 3)
-                       / (24 * (1 - ipc.PoissonRate * ipc.PoissonRate));
+                    / (24 * (1 - ipc.PoissonRate * ipc.PoissonRate));
     ipc.shearStiff = 0.03 * ipc.stretchStiff * ipc.strainRate;
 }
 

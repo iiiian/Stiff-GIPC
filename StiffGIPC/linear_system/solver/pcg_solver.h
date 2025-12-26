@@ -11,7 +11,9 @@ class PCGSolverConfig
      *  dof * max_iter_ratio
      */
     Float max_iter_ratio  = 0.3;
-    Float global_tol_rate = 1e-4;
+    Float rel_tol = 1e-2;
+    Float abs_tol = 0.0;
+    bool  use_preconditioned_residual_norm = true;
     bool  use_bsr         = true;
 };
 

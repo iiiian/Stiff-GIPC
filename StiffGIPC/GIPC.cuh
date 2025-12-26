@@ -134,7 +134,9 @@ class GIPC
     double clothDensity            = 0.0;
     double softMotionRate          = 0.0;
     double Newton_solver_threshold = 0.0;
-    double pcg_threshold           = 0.0;
+    double pcg_rel_threshold                 = 0.0;
+    double pcg_abs_threshold                 = 0.0;
+    bool   pcg_use_preconditioned_norm       = true;
 
     gipc::ABDFEMCountInfo abd_fem_count_info{};
 

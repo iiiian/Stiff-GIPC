@@ -50,8 +50,10 @@ void GIPC::create_LinearSystem(device_TetraData& tet)
 
     std::cout << "- create PCG Solver" << std::endl;
     gipc::PCGSolverConfig cfg;
-    cfg.global_tol_rate = pcg_threshold;
-    auto& pcg           = m_global_linear_system->create<gipc::PCGSolver>(cfg);
+    cfg.rel_tol = pcg_rel_threshold;
+    cfg.abs_tol = pcg_abs_threshold;
+    cfg.use_preconditioned_residual_norm = pcg_use_preconditioned_norm;
+    auto& pcg = m_global_linear_system->create<gipc::PCGSolver>(cfg);
 
     std::cout << "- create Preconditioner" << std::endl;
     

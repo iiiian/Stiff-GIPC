@@ -13,7 +13,9 @@
     "collision_detection_buff_scale": 3.0,
     "motion_rate": 1.0,
     "ipc_time_step": 0.02,
-    "pcg_solver_threshold": 0.0001,
+    "pcg_rel_threshold": 0.01,
+    "pcg_abs_threshold": 0.0,
+    "pcg_use_preconditioned_norm": true,
     "Newton_solver_threshold": 0.01,
     "IPC_ralative_dHat": 0.001
   },

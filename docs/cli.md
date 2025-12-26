@@ -108,14 +108,34 @@ Top-level:
 - **Used in:** Multiple locations at `GIPC.cu:8029, 9123, 10766, 10881`
 - **Effect:** Simulation timestep. Smaller = more stable but slower. Larger = faster but may diverge.
 
-### `pcg_solver_threshold`
+### `pcg_rel_threshold`
 - **Type:** number
-- **Stored in:** `ipc.pcg_threshold`
-- **Used in:** `gipc/gipc.cu:53`
+- **Stored in:** `ipc.pcg_rel_threshold`
+- **Used in:** `gipc/gipc.cu`
   ```cpp
-  cfg.global_tol_rate = pcg_threshold;
+  cfg.rel_tol = pcg_rel_threshold;
   ```
-- **Effect:** Relative tolerance for PCG linear solver convergence. Smaller = more accurate but slower.
+- **Effect:** Relative tolerance for PCG convergence. Stops when `||r|| <= pcg_rel_threshold * ||r0||` (if `pcg_rel_threshold > 0`).
+
+### `pcg_abs_threshold`
+- **Type:** number
+- **Stored in:** `ipc.pcg_abs_threshold`
+- **Used in:** `gipc/gipc.cu`
+  ```cpp
+  cfg.abs_tol = pcg_abs_threshold;
+  ```
+- **Effect:** Absolute tolerance for PCG convergence. Stops when `||r|| <= pcg_abs_threshold` (if `pcg_abs_threshold > 0`).
+
+### `pcg_use_preconditioned_norm`
+- **Type:** bool
+- **Stored in:** `ipc.pcg_use_preconditioned_norm`
+- **Used in:** `gipc/gipc.cu`
+  ```cpp
+  cfg.use_preconditioned_residual_norm = pcg_use_preconditioned_norm;
+  ```
+- **Effect:** Chooses the norm used in the stop test:
+  - `true`: `||r|| = sqrt(r^T M^{-1} r)` (preconditioned residual norm)
+  - `false`: `||r|| = sqrt(r^T r)` (plain residual norm)
 
 ### `Newton_solver_threshold`
 - **Type:** number
@@ -253,5 +273,4 @@ Top-level:
   }
   ```
 - **Effect:** Vertices inside the axis-aligned bounding box are fixed (boundary type 1 = no movement).
-
 

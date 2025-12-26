@@ -195,6 +195,15 @@ SizeT PCGSolver::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
     p   = z;
     rz0 = rz;
 
+    Float rr0 = 0;
+    if(!m_config.use_preconditioned_residual_norm)
+    {
+        rr0 = My_PCG_General_v_v_Reduction_Algorithm(Ap.buffer_view().data(),
+                                                     r.buffer_view().data(),
+                                                     r.buffer_view().data(),
+                                                     r.size());
+    }
+
     for(k = 1; k < max_iter; ++k)
     {
         {
@@ -229,9 +238,6 @@ SizeT PCGSolver::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
                                      (int)z.size());
         }
 
-        if(std::abs(rz) <= m_config.global_tol_rate * rz0)
-            break;
-
         {
             //Timer timer{"preconditioner"};
             apply_preconditioner(z, r);
@@ -246,6 +252,31 @@ SizeT PCGSolver::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
                                                             z.size());
         }
 
+        if(k % 10 == 0)
+        {
+            const Float rel2 = m_config.rel_tol * m_config.rel_tol;
+            const Float abs2 = m_config.abs_tol * m_config.abs_tol;
+
+            if(m_config.use_preconditioned_residual_norm)
+            {
+                if(rz_new <= rel2 * rz0 || rz_new <= abs2)
+                {
+                    break;
+                }
+            }
+            else
+            {
+                const Float rr =
+                    My_PCG_General_v_v_Reduction_Algorithm(Ap.buffer_view().data(),
+                                                           r.buffer_view().data(),
+                                                           r.buffer_view().data(),
+                                                           r.size());
+                if(rr <= rel2 * rr0 || rr <= abs2)
+                {
+                    break;
+                }
+            }
+        }
         beta = rz_new / rz;
 
         {
