@@ -192,13 +192,13 @@ void initFEM(tetrahedra_obj& mesh, const GIPC& ipc)
         mesh.volum.push_back(vlm);
 
 
-        // These are not used anywhere. Probably legacy.
         double lengthRateLame =
             mesh.vert_youngth_modules[i] / (2 * (1 + ipc.PoissonRate));
         double volumeRateLame = mesh.vert_youngth_modules[i] * ipc.PoissonRate
                                 / ((1 + ipc.PoissonRate) * (1 - 2 * ipc.PoissonRate));
-        double lengthRate = 4 * lengthRateLame / 3;
-        double volumeRate = volumeRateLame + 5 * lengthRateLame / 6;
+        // Since we are no longer using SNK energy, remove the lame parameter offsets.
+        double lengthRate = lengthRateLame;
+        double volumeRate = volumeRateLame;
 
         mesh.lengthRate.push_back(lengthRate);
         mesh.volumeRate.push_back(volumeRate);

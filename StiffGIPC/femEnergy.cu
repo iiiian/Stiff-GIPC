@@ -440,29 +440,48 @@ __device__ __GEIGEN__::Matrix3x3d __computePEPF_StableNHK3D2_double(
 }
 
 // Compute first Piola stress dE/dF for stable Neo-Hookean variant 1 (3D).
-// TODO: change to standard NK with log term.
 __device__ __GEIGEN__::Matrix3x3d __computePEPF_StableNHK3D1_double(
     const __GEIGEN__::Matrix3x3d& F, const double& I2, const double& I3, double lengthRate, double volumRate)
 {
-    double                 u = lengthRate, r = volumRate;
-    __GEIGEN__::Matrix3x3d pI3pF;
+    double                 mu  = lengthRate;
+    double                 lmd = volumRate;
+    __GEIGEN__::Matrix3x3d PEPF;
 
-    pI3pF.m[0][0] = F.m[1][1] * F.m[2][2] - F.m[1][2] * F.m[2][1];
-    pI3pF.m[0][1] = F.m[1][2] * F.m[2][0] - F.m[1][0] * F.m[2][2];
-    pI3pF.m[0][2] = F.m[1][0] * F.m[2][1] - F.m[1][1] * F.m[2][0];
+    // ------------------ generated code --------------------
+    double F00 = F.m[0][0];
+    double F01 = F.m[0][1];
+    double F02 = F.m[0][2];
+    double F10 = F.m[1][0];
+    double F11 = F.m[1][1];
+    double F12 = F.m[1][2];
+    double F20 = F.m[2][0];
+    double F21 = F.m[2][1];
+    double F22 = F.m[2][2];
 
-    pI3pF.m[1][0] = F.m[2][1] * F.m[0][2] - F.m[2][2] * F.m[0][1];
-    pI3pF.m[1][1] = F.m[2][2] * F.m[0][0] - F.m[2][0] * F.m[0][2];
-    pI3pF.m[1][2] = F.m[2][0] * F.m[0][1] - F.m[2][1] * F.m[0][0];
+    double x0  = F11 * F22 - F12 * F21;
+    double x1  = 1 / I3;
+    double x2  = mu * x1;
+    double x3  = lmd * x1 * log(I3);
+    double x4  = -F10 * F22 + F12 * F20;
+    double x5  = F10 * F21 - F11 * F20;
+    double x6  = -F01 * F22 + F02 * F21;
+    double x7  = F00 * F22 - F02 * F20;
+    double x8  = -F00 * F21 + F01 * F20;
+    double x9  = F01 * F12 - F02 * F11;
+    double x10 = -F00 * F12 + F02 * F10;
+    double x11 = F00 * F11 - F01 * F10;
 
-    pI3pF.m[2][0] = F.m[0][1] * F.m[1][2] - F.m[1][1] * F.m[0][2];
-    pI3pF.m[2][1] = F.m[0][2] * F.m[1][0] - F.m[0][0] * F.m[1][2];
-    pI3pF.m[2][2] = F.m[0][0] * F.m[1][1] - F.m[0][1] * F.m[1][0];
+    PEPF.m[0][0] = F00 * mu - x0 * x2 + x0 * x3;
+    PEPF.m[0][1] = F01 * mu - x2 * x4 + x3 * x4;
+    PEPF.m[0][2] = F02 * mu - x2 * x5 + x3 * x5;
+    PEPF.m[1][0] = F10 * mu - x2 * x6 + x3 * x6;
+    PEPF.m[1][1] = F11 * mu - x2 * x7 + x3 * x7;
+    PEPF.m[1][2] = F12 * mu - x2 * x8 + x3 * x8;
+    PEPF.m[2][0] = F20 * mu - x2 * x9 + x3 * x9;
+    PEPF.m[2][1] = F21 * mu - x10 * x2 + x10 * x3;
+    PEPF.m[2][2] = F22 * mu - x11 * x2 + x11 * x3;
+    // ------------------ generated code --------------------
 
-    __GEIGEN__::Matrix3x3d PEPF, tempA, tempB;
-    tempA = __GEIGEN__::__S_Mat_multiply(F, u);
-    tempB = __GEIGEN__::__S_Mat_multiply(pI3pF, (r * (I3 - 1 - u / r)));
-    __GEIGEN__::__Mat_add(tempA, tempB, PEPF);
     return PEPF;
 }
 
@@ -1048,7 +1067,6 @@ __device__ double __cal_StabbleNHK_energy2_3D(const double3* vertexes,
 
 
 // Compute stable Neo-Hookean energy variant 1 for one tetrahedron.
-// TODO: change to standard NK with log term.
 __device__ double __cal_StabbleNHK_energy1_3D(const double3* vertexes,
                                               const uint4&   tetrahedra,
                                               const __GEIGEN__::Matrix3x3d& DmInverse,
@@ -1062,11 +1080,11 @@ __device__ double __cal_StabbleNHK_energy1_3D(const double3* vertexes,
     __M_Mat_multiply(Ds, DmInverse, F);
 
 
-    double I2 = __GEIGEN__::__squaredNorm(F);
-    double I3 = __GEIGEN__::__Determiant(F);
+    double I1   = __GEIGEN__::__squaredNorm(F);
+    double J    = __GEIGEN__::__Determiant(F);
+    double logJ = log(J);
 
-    double Jminus1 = I3 - 1 - lenRate / volRate;
-    return 0.5 * (lenRate * (I2 - 3) + volRate * (Jminus1 * Jminus1)) * volume;
+    return (0.5 * lenRate * (I1 - 3) - lenRate * logJ + 0.5 * volRate * logJ * logJ) * volume;
 }
 
 // Compute ARAP energy for one tetrahedron (penalizes deviation from best-fit rotation).
@@ -1102,7 +1120,6 @@ __device__ double __cal_ARAP_energy_3D(const double3*                vertexes,
 }
 
 // Compute d(vec(F))/d(x) for a tetrahedron given Dm^{-1} (9x12).
-// TODO: change to standard NK with log term.
 __device__ __GEIGEN__::Matrix9x12d __computePFDsPX3D_double(const __GEIGEN__::Matrix3x3d& InverseDm)
 {
     __GEIGEN__::Matrix9x12d matOut;
@@ -1622,7 +1639,7 @@ __device__ void __project_StabbleNHK_H_3D2_makePD(Matrix<double, 9, 9>& Hq,
 }
 
 
-// Construct twist and flip eigenvectors for 3D corotational-style Hessian projection.
+// store Q4, Q5, Q3, Q7, Q8, Q6 in col 2-8
 __device__ void BuildTwistAndFlipEigenvectors(const Matrix3d&       U,
                                               const Matrix3d&       V,
                                               Matrix<double, 9, 9>& Q)
@@ -1631,6 +1648,15 @@ __device__ void BuildTwistAndFlipEigenvectors(const Matrix3d&       U,
     const Matrix3d sV    = scale * V;
 
     using M3 = Eigen::Matrix<double, 3, 3, Eigen::ColMajor>;
+
+    // let u = [ u0 u1 u2 ]
+    //     v = [ v0 v1 v2 ]
+    // A = u1 v2*
+    // B = u2 v1*
+    // C = u0 v2*
+    // D = u2 v0*
+    // E = u0 v1*
+    // F = u1 v0*
 
     M3 A;
     A << sV(0, 2) * U(0, 1), sV(1, 2) * U(0, 1), sV(2, 2) * U(0, 1),
@@ -1661,6 +1687,9 @@ __device__ void BuildTwistAndFlipEigenvectors(const Matrix3d&       U,
     F << sV(0, 0) * U(0, 1), sV(1, 0) * U(0, 1), sV(2, 0) * U(0, 1),
         sV(0, 0) * U(1, 1), sV(1, 0) * U(1, 1), sV(2, 0) * U(1, 1),
         sV(0, 0) * U(2, 1), sV(1, 0) * U(2, 1), sV(2, 0) * U(2, 1);
+
+    // the order is different from the paper.
+    // output Q4, Q5, Q3, Q7, Q8, Q6
 
     // Twist eigenvectors
     Eigen::Map<M3>(Q.data())      = B - A;
@@ -1697,7 +1726,8 @@ __device__ Matrix<double, 9, 9> __project_StabbleNHK_H_3D1_makePD(
     Vector<double, 9>    eigenvalues;
     Matrix<double, 9, 9> eigenvectors;
 
-    const double J = I3;
+    const double J     = I3;
+    const double log_J = log(J);
 
     // Compute the twist and flip eigenvalues
     {
@@ -1705,7 +1735,7 @@ __device__ Matrix<double, 9, 9> __project_StabbleNHK_H_3D1_makePD(
         eigenvalues.segment<3>(0) = S;
         // Flip eigenvalues
         eigenvalues.segment<3>(3) = -S;
-        const double evScale      = lambda * (J - 1.0) - mu;
+        const double evScale      = (lambda * log_J - mu) / I3;
         eigenvalues.segment<6>(0) *= evScale;
         eigenvalues.segment<6>(0).array() += mu;
     }
@@ -1716,19 +1746,22 @@ __device__ Matrix<double, 9, 9> __project_StabbleNHK_H_3D1_makePD(
     // Compute the remaining three eigenvalues and eigenvectors
     {
         Matrix3d     A;
-        const double s0s0    = S(0) * S(0);
-        const double s1s1    = S(1) * S(1);
-        const double s2s2    = S(2) * S(2);
-        A(0, 0)              = mu + lambda * s1s1 * s2s2;
-        A(1, 1)              = mu + lambda * s0s0 * s2s2;
-        A(2, 2)              = mu + lambda * s0s0 * s1s1;
-        const double evScale = lambda * (2.0 * J - 1.0) - mu;
-        A(0, 1)              = evScale * S(2);
-        A(1, 0)              = A(0, 1);
-        A(0, 2)              = evScale * S(1);
-        A(2, 0)              = A(0, 2);
-        A(1, 2)              = evScale * S(0);
-        A(2, 1)              = A(1, 2);
+        const double s0s0 = S(0) * S(0);
+        const double s1s1 = S(1) * S(1);
+        const double s2s2 = S(2) * S(2);
+        const double temp = lambda * (1 - log_J) + mu;
+        A(0, 0)           = mu + temp / s0s0;
+        A(1, 1)           = mu + temp / s1s1;
+        A(2, 2)           = mu + temp / s2s2;
+        const double s0s1 = S(0) * S(1);
+        const double s1s2 = S(1) * S(2);
+        const double s2s0 = S(2) * S(0);
+        A(0, 1)           = lambda / s0s1;
+        A(1, 0)           = A(0, 1);
+        A(0, 2)           = lambda / s2s0;
+        A(2, 0)           = A(0, 2);
+        A(1, 2)           = lambda / s1s2;
+        A(2, 1)           = A(1, 2);
 
         Eigen::SelfAdjointEigenSolver<Matrix3d> Aeigs;
         Aeigs.computeDirect(A);
