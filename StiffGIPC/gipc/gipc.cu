@@ -7,8 +7,8 @@
 void GIPC::build_gipc_system(device_TetraData& tet)
 {
     std::cout << "* Building GIPC system:" << std::endl;
-    gipc::Timer::disable_all();
-    
+    // gipc::Timer::disable_all();
+
     // set up debug
     muda::Debug::debug_sync_all(false);
 
@@ -21,9 +21,9 @@ void GIPC::build_gipc_system(device_TetraData& tet)
     std::string config_dir = GIPC_ASSETS_DIR "scene/abd_system_config.json";
 
     gipc::Json json = gipc::Json::parse(std::ifstream(std::string{config_dir}));
-    
 
-    m_abd_system->parms.motor_speed = json["motor_speed"].get<double>();
+
+    m_abd_system->parms.motor_speed    = json["motor_speed"].get<double>();
     m_abd_system->parms.motor_strength = json["motor_strength"].get<double>();
 
     std::cout << "- create Global Linear System ..." << std::endl;
@@ -50,13 +50,13 @@ void GIPC::create_LinearSystem(device_TetraData& tet)
 
     std::cout << "- create PCG Solver" << std::endl;
     gipc::PCGSolverConfig cfg;
-    cfg.rel_tol = pcg_rel_threshold;
-    cfg.abs_tol = pcg_abs_threshold;
+    cfg.rel_tol                          = pcg_rel_threshold;
+    cfg.abs_tol                          = pcg_abs_threshold;
     cfg.use_preconditioned_residual_norm = pcg_use_preconditioned_norm;
     auto& pcg = m_global_linear_system->create<gipc::PCGSolver>(cfg);
 
     std::cout << "- create Preconditioner" << std::endl;
-    
+
     m_global_linear_system->create<gipc::ABDPreconditioner>(abd, *m_abd_system, *m_abd_sim_data);
 
     if(pcg_data.P_type == 1)

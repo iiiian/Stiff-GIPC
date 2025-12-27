@@ -10732,6 +10732,7 @@ int              GIPC::solve_subIP(device_TetraData& TetMesh,
                       double&           time3,
                       double&           time4)
 {
+    gipc::Timer timer{"solve_subIP"};
     auto& stats_at_current_frame = gipc::Statistics::instance().at_current_frame();
     std::cout << "solve_subIP >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
               << std::endl;
@@ -10744,6 +10745,7 @@ int              GIPC::solve_subIP(device_TetraData& TetMesh,
     double totalTimeStep = 0;
     for(; k < iterCap; ++k)
     {
+        gipc::Timer iter_timer{"newton_iteration"};
         stats_at_current_frame["newton"].push_back(gipc::Json::object());
 
         totalCollisionPairs += h_cpNum[0];
@@ -10937,6 +10939,7 @@ double ttime4           = 0;
 bool   isUpdateBoundary = false;
 void   GIPC::IPC_Solver(device_TetraData& TetMesh)
 {
+    gipc::Timer timer{"IPC_Solver"};
     //double animation_fullRate = 0;
     cudaEvent_t start, end0;
     cudaEventCreate(&start);
@@ -11124,14 +11127,5 @@ void   GIPC::IPC_Solver(device_TetraData& TetMesh)
     outTime.close();
 
 
-    auto& stats = gipc::Statistics::instance();
-
-    stats.at_current_frame()["timer"] =
-        gipc::GlobalTimer::current()->report_merged_as_json();
-    gipc::GlobalTimer::current()->print_merged_timings();
-    gipc::GlobalTimer::current()->clear();
-    stats.write_to_file(std::string{gipc::output_dir()} + "/stats.json");
-
-    auto f = stats.frame();
-    stats.frame(f + 1);
+    // timer/stat reporting moved to main.cu so that all Timer scopes have ended
 }

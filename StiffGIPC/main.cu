@@ -6,6 +6,8 @@
 #include <GIPC.cuh>
 #include <argparse/argparse.hpp>
 #include <gipc/utils/json.h>
+#include <gipc/utils/timer.h>
+#include <gipc/statistics.h>
 #include <metis_sort.h>
 
 #include "cuda_tools/cuda_tools.h"
@@ -529,6 +531,15 @@ int main(int argc, char** argv)
     for(int frame = 0; frame < frames; ++frame)
     {
         ipc.IPC_Solver(d_tetMesh);
+
+        auto& stats = gipc::Statistics::instance();
+        stats.at_current_frame()["timer"] =
+            gipc::GlobalTimer::current()->report_merged_as_json();
+        gipc::GlobalTimer::current()->print_merged_timings();
+        gipc::GlobalTimer::current()->clear();
+        stats.write_to_file((fs::path(output_dir) / "stats.json").string());
+        stats.frame(stats.frame() + 1);
+
         CUDA_SAFE_CALL(cudaMemcpy(tetMesh.vertexes.data(),
                                   ipc._vertexes,
                                   ipc.vertexNum * sizeof(double3),
