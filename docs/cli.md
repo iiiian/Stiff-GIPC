@@ -1,13 +1,10 @@
 # Headless scene CLI
 
-This repo's `gipc` binary is a headless CLI that loads a scene from JSON, runs the simulation for a fixed number of frames, and writes one `.obj` per frame.
+## CLI arguments
 
-## Build
-
-```bash
-cmake --preset debug
-cmake --build build/debug -j20
-```
+- `-o, --output <dir>`: required in both modes.
+- Offline sort mode: `--sort <input_dir>` (ignores `--json` if also provided).
+- Run mode: `-j, --json <scene.json>` (required unless `--sort` is used).
 
 ## Offline sort mode
 
@@ -27,7 +24,45 @@ outputs (per input mesh):
 ./build/debug/gipc -j examples/free_fall.json -o output/free_fall_cli
 ```
 
+Outputs:
+- `output/free_fall_cli/frame_00000.obj`, `frame_00001.obj`, ... (one per frame)
+- `output/free_fall_cli/stats.json` (overwritten each frame with accumulated stats/timers)
+
+## `stats.json` (status output format)
+
+The headless CLI writes per-frame solver status + timing information to `<output_dir>/stats.json` (some older notes may call this `status.json`; the schema is the same).
+
+Top-level schema:
+```json
+{
+  "frames": [
+    {
+      "newton": [
+        { "pcg": { "iterations": 70 } }
+      ],
+      "timer": {
+        "name": "GlobalTimer",
+        "duration": 0.0,
+        "count": 1,
+        "parent": "",
+        "children": []
+      }
+    }
+  ]
+}
+```
+
+Notes:
+- `frames[i].newton` is a list of Newton iterations for frame `i`; each entry currently records `pcg.iterations` for that Newton step.
+- `frames[i].timer` is a merged timer tree from `gipc::GlobalTimer::report_merged_as_json()`:
+  - `duration` is in seconds (multiply by `1000` for ms).
+  - `count` is how many times that timer node was hit within the frame.
+  - `parent` is the full parent path (e.g. `/GlobalTimer/IPC_Solver`); the root has `parent == ""`.
+  - `children` are nested timer nodes (sorted by total `duration`, descending).
+
 ## JSON schema (all fields required)
+
+The loader uses `json.at(...)` for all fields below, so every key must be present (arrays can be empty). In particular, `objects[].part_file` and `objects[].pin_boxes` must exist even when not used.
 
 Top-level:
 - `settings` (object): simulation parameters
@@ -99,7 +134,7 @@ Top-level:
 
 ### `motion_rate`
 - **Type:** number
-- **Stored in:** `ipc.animation_subRate = 1.0 / motion_rate` at `main.cu:523`
+- **Stored in:** `ipc.animation_subRate = 1.0 / motion_rate` at `main.cu:524`
 - **Used in:** `GIPC.cu:11009, 11045`
 - **Effect:** Controls animation playback speed. Higher = faster animation target interpolation.
 
@@ -173,7 +208,7 @@ Top-level:
 
 ### `preconditioner_type`
 - **Type:** int
-- **Stored in:** `ipc.pcg_data.P_type` at `main.cu:293`
+- **Stored in:** `ipc.pcg_data.P_type` at `main.cu:297`
 - **Used in:** `gipc/gipc.cu:60-69`
   ```cpp
   if(pcg_data.P_type == 1) {
@@ -192,7 +227,7 @@ Top-level:
 
 ### `is_obstacle`
 - **Type:** bool
-- **Used in:** `main.cu:331-339`
+- **Used in:** `main.cu:335-344`
   ```cpp
   if(is_obstacle) {
       for(int i = v_begin; i < v_end; ++i) {
@@ -204,7 +239,7 @@ Top-level:
 
 ### `mesh_msh`
 - **Type:** string
-- **Used in:** `main.cu:314-315`
+- **Used in:** `main.cu:305, 318-319`
   ```cpp
   tetMesh.load_tetrahedraMesh(mesh_path, transform, young_modulus, ...);
   ```
@@ -212,12 +247,12 @@ Top-level:
 
 ### `part_file`
 - **Type:** string
-- **Used in:** `main.cu:323`
-- **Effect:** Path to METIS partition file for MAS preconditioner. Required when `preconditioner_type != 0`, ignored otherwise.
+- **Used in:** `main.cu:306, 324-331`
+- **Effect:** Path to METIS partition file for MAS preconditioner. `preconditioner_type == 0` ignores its contents, but the key must still be present in the JSON.
 
 ### `young_modulus`
 - **Type:** number
-- **Used in:** `main.cu:304, 315` -> stored per-tetrahedron in `mesh.vert_youngth_modules`
+- **Used in:** `main.cu:308, 318-319` -> stored per-tetrahedron in `mesh.vert_youngth_modules`
 - **Flow:** `load_tetrahedraMesh()` -> `initFEM()` -> compute `lengthRate`/`volumeRate` per tet
 - **Final usage:** `femEnergy.cu:1032-1050` (Stable Neo-Hookean energy)
   ```cpp
@@ -232,7 +267,7 @@ Top-level:
 
 #### `scale`
 - **Type:** number
-- **Used in:** `main.cu:115-128, 305`
+- **Used in:** `main.cu:117-131, 309`
   ```cpp
   transform.block<3,3>(0,0) = Matrix3d::Identity() * scale;
   ```
@@ -240,7 +275,7 @@ Top-level:
 
 #### `translation`
 - **Type:** vec3 (array of 3 numbers)
-- **Used in:** `main.cu:115-128, 305`
+- **Used in:** `main.cu:117-131, 309`
   ```cpp
   transform.block<3,1>(0,3) = Vector3d{t[0], t[1], t[2]};
   ```
@@ -248,7 +283,7 @@ Top-level:
 
 ### `initial_velocity`
 - **Type:** vec3 (array of 3 numbers)
-- **Used in:** `main.cu:342-345`
+- **Used in:** `main.cu:310, 346-349`
   ```cpp
   for(int i = v_begin; i < v_end; ++i) {
       tetMesh.velocities[i] = init_vel;
@@ -264,7 +299,7 @@ Top-level:
 
 #### `max`
 - **Type:** vec3 (array of 3 numbers)
-- **Used in:** `main.cu:348-361`
+- **Used in:** `main.cu:351-365`
   ```cpp
   if(p.x >= bmin.x && p.x <= bmax.x &&
      p.y >= bmin.y && p.y <= bmax.y &&
@@ -273,4 +308,3 @@ Top-level:
   }
   ```
 - **Effect:** Vertices inside the axis-aligned bounding box are fixed (boundary type 1 = no movement).
-

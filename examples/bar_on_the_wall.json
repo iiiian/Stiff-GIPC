@@ -1,0 +1,40 @@
+{
+  "settings": {
+    "volume_mesh_density": 1000.0,
+    "poisson_rate": 0.2,
+    "friction_rate": 0.2,
+    "gd_friction_rate": 0.2,
+    "triangle_mesh_thickness": 0.001,
+    "triangle_mesh_youngs_modulus": 10000.0,
+    "triangle_bend_youngs_modulus": 100000000.0,
+    "triangle_mesh_density": 200.0,
+    "strain_rate": 100.0,
+    "motion_stiffness": 1.0,
+    "collision_detection_buff_scale": 3.0,
+    "motion_rate": 1.0,
+    "ipc_time_step": 0.1,
+    "pcg_rel_threshold": 0.01,
+    "pcg_abs_threshold": 0.0,
+    "pcg_use_preconditioned_norm": false,
+    "Newton_solver_threshold": 0.01,
+    "IPC_ralative_dHat": 0.001
+  },
+  "simulation": {
+    "frames": 100,
+    "preconditioner_type": 1
+  },
+  "objects": [
+    {
+      "is_obstacle": false,
+      "mesh_msh": "output/bar_width_15_1_1_num_75_5_5_sorted.16.msh",
+      "part_file": "output/bar_width_15_1_1_num_75_5_5_sorted.16.part",
+      "young_modulus": 100000000.0,
+      "transform": {
+        "scale": 1.0,
+        "translation": [0.0, 0.0, 0.0]
+      },
+      "initial_velocity": [0.0, 0.0, 0.0],
+      "pin_boxes": [{"min": [0.0, -100.0, -100.0], "max": [0.0, 100.0, 100.0]}]
+    }
+  ]
+}
