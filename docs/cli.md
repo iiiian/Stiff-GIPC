@@ -62,7 +62,7 @@ Notes:
 
 ## JSON schema (all fields required)
 
-The loader uses `json.at(...)` for all fields below, so every key must be present (arrays can be empty). In particular, `objects[].part_file` and `objects[].pin_boxes` must exist even when not used.
+The loader uses `json.at(...)` for all fields below, so every key must be present (arrays can be empty). In particular, `objects[].part_file`, `objects[].pin_boxes`, `objects[].density`, and `objects[].poisson_ratio` must exist even when not used.
 
 Top-level:
 - `settings` (object): simulation parameters
@@ -79,11 +79,11 @@ Top-level:
   ```cpp
   mesh.masses[vertex] += tetrahedron_volume * density / 4;
   ```
-- **Effect:** Determines mass per vertex. Higher density = heavier mesh = slower motion under gravity.
+- **Effect:** Legacy global density. FEM masses are now driven by `objects[].density`; this value is kept for compatibility.
 
 ### `poisson_rate`
 - **Type:** number
-- **Effect:** Controls compressibility. Values near 0.5 = nearly incompressible (rubber-like). Values near 0 = easily compressible.
+- **Effect:** Legacy global Poisson ratio. FEM is now driven by `objects[].poisson_ratio`; this value is kept for compatibility.
 
 ### `friction_rate`
 - **Type:** number
@@ -241,7 +241,7 @@ Top-level:
 - **Type:** string
 - **Used in:** `main.cu:305, 318-319`
   ```cpp
-  tetMesh.load_tetrahedraMesh(mesh_path, transform, young_modulus, ...);
+  tetMesh.load_tetrahedraMesh(mesh_path, transform, young_modulus, density, poisson_ratio, ...);
   ```
 - **Effect:** Path to Gmsh `.msh` file containing tetrahedral mesh.
 
@@ -262,6 +262,20 @@ Top-level:
   ```
   Where `I2 = ||F||^2` (Frobenius norm squared) and `I3 = det(F)` (deformation gradient determinant).
 - **Effect:** Per-object stiffness. Higher = stiffer material.
+
+### `density`
+- **Type:** number
+- **Used in:** `main.cu` -> stored per-tetrahedron in `mesh.tet_densities` -> used in `initFEM()` to accumulate vertex masses
+- **Formula:**
+  ```cpp
+  mesh.masses[vertex] += tetrahedron_volume * density / 4;
+  ```
+- **Effect:** Determines mass. Higher density = heavier mesh = slower motion under gravity.
+
+### `poisson_ratio`
+- **Type:** number
+- **Used in:** `main.cu` -> stored per-tetrahedron in `mesh.tet_poisson_ratios` -> used in `initFEM()` to compute per-tet Lamé parameters
+- **Effect:** Controls compressibility. Values near 0.5 = nearly incompressible (rubber-like). Values near 0 = easily compressible.
 
 ### `transform`
 

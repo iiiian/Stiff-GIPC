@@ -482,6 +482,8 @@ bool tetrahedra_obj::load_parts(const std::string& filename)
 bool tetrahedra_obj::load_tetrahedraMesh(const std::string&     filename,
                                          const Eigen::Matrix4d& transform,
                                          double                 youngth_module,
+                                         double                 density,
+                                         double                 poisson_ratio,
                                          gipc::BodyType         body_type,
                                          BodyBoundaryType body_boundary_type)
 {
@@ -553,6 +555,8 @@ bool tetrahedra_obj::load_tetrahedraMesh(const std::string&     filename,
         tetrahedras.push_back(tetrahedra);
         tetra_fiberDir.push_back(make_double3(0, 0, 0));
         vert_youngth_modules.push_back(youngth_module);
+        tet_densities.push_back(density);
+        tet_poisson_ratios.push_back(poisson_ratio);
     }
 
     double boxTVolum = (maxTConer.x - minTConer.x) * (maxTConer.y - minTConer.y)

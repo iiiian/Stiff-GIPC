@@ -70,6 +70,8 @@ class tetrahedra_obj
     vector<double3>    targetPos;
     vector<double3>    tetra_fiberDir;
     vector<double>     vert_youngth_modules;
+    vector<double>     tet_densities;
+    vector<double>     tet_poisson_ratios;
     vector<double>     lengthRate;
     vector<double>     volumeRate;
     std::vector<uint2> tri_edges_adj_points;
@@ -139,6 +141,8 @@ class tetrahedra_obj
     bool load_tetrahedraMesh(const std::string&     filename,
                              const Eigen::Matrix4d& transform,
                              double                 youngth_module,
+                             double                 density,
+                             double                 poisson_ratio,
                              gipc::BodyType body_type = gipc::BodyType::FEM,
                              BodyBoundaryType body_boundary_type = BodyBoundaryType::Free);
 

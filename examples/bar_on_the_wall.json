@@ -29,6 +29,8 @@
       "mesh_msh": "output/bar_width_15_1_1_num_75_5_5_sorted.16.msh",
       "part_file": "output/bar_width_15_1_1_num_75_5_5_sorted.16.part",
       "young_modulus": 100000000.0,
+      "density": 1000.0,
+      "poisson_ratio": 0.2,
       "transform": {
         "scale": 1.0,
         "translation": [0.0, 0.0, 0.0]

@@ -170,7 +170,7 @@ void apply_settings(GIPC&             ipc,
     ipc.shearStiff = 0.03 * ipc.stretchStiff * ipc.strainRate;
 }
 
-void initFEM(tetrahedra_obj& mesh, const GIPC& ipc)
+void initFEM(tetrahedra_obj& mesh)
 {
     double massSum   = 0;
     double volumeSum = 0;
@@ -185,21 +185,25 @@ void initFEM(tetrahedra_obj& mesh, const GIPC& ipc)
 
         double vlm = calculateVolum(mesh.vertexes.data(), mesh.tetrahedras[i]);
 
-        mesh.masses[mesh.tetrahedras[i].x] += vlm * ipc.density / 4;
-        mesh.masses[mesh.tetrahedras[i].y] += vlm * ipc.density / 4;
-        mesh.masses[mesh.tetrahedras[i].z] += vlm * ipc.density / 4;
-        mesh.masses[mesh.tetrahedras[i].w] += vlm * ipc.density / 4;
+        const double density = mesh.tet_densities[i];
 
-        massSum += vlm * ipc.density;
+        mesh.masses[mesh.tetrahedras[i].x] += vlm * density / 4;
+        mesh.masses[mesh.tetrahedras[i].y] += vlm * density / 4;
+        mesh.masses[mesh.tetrahedras[i].z] += vlm * density / 4;
+        mesh.masses[mesh.tetrahedras[i].w] += vlm * density / 4;
+
+        massSum += vlm * density;
         volumeSum += vlm;
         mesh.DM_inverse.push_back(DM_inverse);
         mesh.volum.push_back(vlm);
 
 
+        const double poisson_ratio = mesh.tet_poisson_ratios[i];
+
         double lengthRateLame =
-            mesh.vert_youngth_modules[i] / (2 * (1 + ipc.PoissonRate));
-        double volumeRateLame = mesh.vert_youngth_modules[i] * ipc.PoissonRate
-                                / ((1 + ipc.PoissonRate) * (1 - 2 * ipc.PoissonRate));
+            mesh.vert_youngth_modules[i] / (2 * (1 + poisson_ratio));
+        double volumeRateLame = mesh.vert_youngth_modules[i] * poisson_ratio
+                                / ((1 + poisson_ratio) * (1 - 2 * poisson_ratio));
         // Since we are no longer using SNK energy, remove the lame parameter offsets.
         double lengthRate = lengthRateLame;
         double volumeRate = volumeRateLame;
@@ -306,6 +310,8 @@ int main(int argc, char** argv)
         const auto  part_file     = obj.at("part_file").get<std::string>();
         const bool  is_obstacle   = obj.at("is_obstacle").get<bool>();
         const auto  young_modulus = obj.at("young_modulus").get<double>();
+        const auto  density       = obj.at("density").get<double>();
+        const auto  poisson_ratio = obj.at("poisson_ratio").get<double>();
         const auto  transform     = read_transform(obj.at("transform"));
         const auto  init_vel      = read_vec3(obj.at("initial_velocity"));
         const auto& pin_boxes     = obj.at("pin_boxes");
@@ -316,7 +322,7 @@ int main(int argc, char** argv)
         const int v_begin = static_cast<int>(tetMesh.vertexes.size());
 
         tetMesh.load_tetrahedraMesh(
-            mesh_path, transform, young_modulus, gipc::BodyType::FEM, boundary);
+            mesh_path, transform, young_modulus, density, poisson_ratio, gipc::BodyType::FEM, boundary);
 
         // If precondition type !=0, we need to load part file for MAS preconditioner.
         // if type == 0, this is a simple diagonal preconditioner.
@@ -372,7 +378,7 @@ int main(int argc, char** argv)
     }
 
     tetMesh.getSurface();
-    initFEM(tetMesh, ipc);
+    initFEM(tetMesh);
 
     d_tetMesh.Malloc_DEVICE_MEM(tetMesh.vertexNum,
                                 tetMesh.tetrahedraNum,
