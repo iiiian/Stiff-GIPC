@@ -10742,6 +10742,8 @@ int              GIPC::solve_subIP(device_TetraData& TetMesh,
     int iterCap = 10000, k = 0;
 
     CUDA_SAFE_CALL(cudaMemset(_moveDir, 0, vertexNum * sizeof(double3)));
+    double xdelta0 = 0.0;
+    bool has_xdelta0 = false;
     double totalTimeStep = 0;
     for(; k < iterCap; ++k)
     {
@@ -10765,23 +10767,16 @@ int              GIPC::solve_subIP(device_TetraData& TetMesh,
         timemakePd += computeGradientAndHessian(TetMesh);
 
 
-        double distToOpt_PN = calcMinMovement(_moveDir, pcg_data.squeue, vertexNum);
-
-        bool gradVanish = (distToOpt_PN < sqrt(Newton_solver_threshold * Newton_solver_threshold
-                                               * bboxDiagSize2 * IPC_dt * IPC_dt));
-
-        //double distToOpt_PN = calcMinMovement(TetMesh.totalForce, pcg_data.squeue, vertexNum);
-        //printf("disToopt:  %f        %f\n",
-        //       distToOpt_PN,
-        //       2 * sqrt(Newton_solver_threshold * Newton_solver_threshold * bboxDiagSize2)
-        //           * IPC_dt * IPC_dt);
-
-        //bool gradVanish =
-        //    (distToOpt_PN < 1
-        //                        * sqrt(Newton_solver_threshold * Newton_solver_threshold * bboxDiagSize2)
-        //                        * IPC_dt * IPC_dt);
-
-        if(k && gradVanish)
+        // xdelta == 0 at iter 0.
+        // so we only do convergence check starting from iter 1.
+        double xdelta = calcMinMovement(_moveDir, pcg_data.squeue, vertexNum);
+        if(k == 1)
+        {
+            xdelta0 = xdelta;
+            has_xdelta0 = true;
+        }
+        // scene_diag is the L2 norm of the bbox diagonal of all non-obstacle objects.
+        if(k > 0 && (xdelta < scene_diag * abs_xdelta_tol || xdelta < rel_xdelta_tol * xdelta0))
         {
             break;
         }

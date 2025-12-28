@@ -16,7 +16,8 @@
     "pcg_rel_threshold": 0.01,
     "pcg_abs_threshold": 0.0,
     "pcg_use_preconditioned_norm": false,
-    "Newton_solver_threshold": 0.01,
+    "abs_xdelta_tol": 0.001,
+    "rel_xdelta_tol": 0.01,
     "IPC_ralative_dHat": 0.001
   },
   "simulation": {

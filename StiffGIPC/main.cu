@@ -24,6 +24,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -152,7 +153,8 @@ void apply_settings(GIPC&             ipc,
     ipc.pcg_rel_threshold = s.at("pcg_rel_threshold").get<double>();
     ipc.pcg_abs_threshold = s.at("pcg_abs_threshold").get<double>();
     ipc.pcg_use_preconditioned_norm = s.at("pcg_use_preconditioned_norm").get<bool>();
-    ipc.Newton_solver_threshold = s.at("Newton_solver_threshold").get<double>();
+    ipc.abs_xdelta_tol = s.at("abs_xdelta_tol").get<double>();
+    ipc.rel_xdelta_tol = s.at("rel_xdelta_tol").get<double>();
     ipc.relative_dhat           = s.at("IPC_ralative_dHat").get<double>();
 
     // As far as I am awared, below lame parameters are not used anywhere.
@@ -303,6 +305,15 @@ int main(int argc, char** argv)
     // This call stores a reference to d_tetMesh.
     ipc.build_gipc_system(d_tetMesh);
 
+    double3 non_obstacle_min =
+        make_double3(std::numeric_limits<double>::infinity(),
+                     std::numeric_limits<double>::infinity(),
+                     std::numeric_limits<double>::infinity());
+    double3 non_obstacle_max =
+        make_double3(-std::numeric_limits<double>::infinity(),
+                     -std::numeric_limits<double>::infinity(),
+                     -std::numeric_limits<double>::infinity());
+
     const auto& objects = scene.at("objects");
     for(const auto& obj : objects)
     {
@@ -323,6 +334,16 @@ int main(int argc, char** argv)
 
         tetMesh.load_tetrahedraMesh(
             mesh_path, transform, young_modulus, density, poisson_ratio, gipc::BodyType::FEM, boundary);
+
+        if(!is_obstacle)
+        {
+            non_obstacle_min.x = std::min(non_obstacle_min.x, tetMesh.minTConer.x);
+            non_obstacle_min.y = std::min(non_obstacle_min.y, tetMesh.minTConer.y);
+            non_obstacle_min.z = std::min(non_obstacle_min.z, tetMesh.minTConer.z);
+            non_obstacle_max.x = std::max(non_obstacle_max.x, tetMesh.maxTConer.x);
+            non_obstacle_max.y = std::max(non_obstacle_max.y, tetMesh.maxTConer.y);
+            non_obstacle_max.z = std::max(non_obstacle_max.z, tetMesh.maxTConer.z);
+        }
 
         // If precondition type !=0, we need to load part file for MAS preconditioner.
         // if type == 0, this is a simple diagonal preconditioner.
@@ -369,6 +390,18 @@ int main(int argc, char** argv)
                 }
             }
         }
+    }
+
+    if(non_obstacle_min.x != std::numeric_limits<double>::infinity())
+    {
+        const double dx = non_obstacle_max.x - non_obstacle_min.x;
+        const double dy = non_obstacle_max.y - non_obstacle_min.y;
+        const double dz = non_obstacle_max.z - non_obstacle_min.z;
+        ipc.scene_diag  = sqrt(dx * dx + dy * dy + dz * dz);
+    }
+    else
+    {
+        ipc.scene_diag = 0.0;
     }
 
     // MAS preconditioner prep.

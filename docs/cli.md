@@ -172,15 +172,17 @@ Top-level:
   - `true`: `||r|| = sqrt(r^T M^{-1} r)` (preconditioned residual norm)
   - `false`: `||r|| = sqrt(r^T r)` (plain residual norm)
 
-### `Newton_solver_threshold`
+### `abs_xdelta_tol`
 - **Type:** number
-- **Stored in:** `ipc.Newton_solver_threshold`
-- **Used in:** `GIPC.cu:10765-10766`
-- **Formula:**
-  ```cpp
-  bool gradVanish = (distToOpt_PN < sqrt(Newton_solver_threshold^2 * bboxDiagSize2 * IPC_dt^2));
-  ```
-- **Effect:** Convergence criterion for Newton solver. When gradient norm falls below this scaled threshold, Newton iteration stops. The threshold is scale-invariant (adapts to scene size and timestep).
+- **Stored in:** `ipc.abs_xdelta_tol`
+- **Effect:** Absolute Newton termination threshold based on `||dx||_inf` scaled by the scene size (union AABB diagonal length over all `objects[]` with `is_obstacle == false`): stop when `||dx||_inf < abs_xdelta_tol * scene_scale`.
+
+### `rel_xdelta_tol`
+- **Type:** number
+- **Stored in:** `ipc.rel_xdelta_tol`
+- **Effect:** Relative Newton termination threshold based on `||dx||_inf`: stop when `||dx||_inf < rel_xdelta_tol * ||dx0||_inf`, where `dx0` is the Newton direction from the first iteration.
+
+Newton stops when **either** condition is satisfied.
 
 ### `IPC_ralative_dHat`
 - **Type:** number

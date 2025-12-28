@@ -73,6 +73,7 @@ class GIPC
     double   dHat          = 0.0;
     double   fDhat         = 0.0;
     double   bboxDiagSize2 = 0.0;
+    double   scene_diag    = 0.0;
     double   relative_dhat = 0.0;
     double   dTol          = 0.0;
     double   minKappaCoef  = 0.0;
@@ -133,7 +134,8 @@ class GIPC
     double strainRate              = 0.0;
     double clothDensity            = 0.0;
     double softMotionRate          = 0.0;
-    double Newton_solver_threshold = 0.0;
+    double abs_xdelta_tol          = 0.0;
+    double rel_xdelta_tol          = 0.0;
     double pcg_rel_threshold                 = 0.0;
     double pcg_abs_threshold                 = 0.0;
     bool   pcg_use_preconditioned_norm       = true;
