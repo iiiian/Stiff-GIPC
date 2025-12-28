@@ -97,7 +97,6 @@ DiagonalSubsystem& GlobalLinearSystem::_create_subsystem(U<DiagonalSubsystem>&& 
 }
 
 
-
 IterativeSolver& GlobalLinearSystem::_create_solver(U<IterativeSolver>&& solver)
 {
     m_solver = std::move(solver);
@@ -165,18 +164,16 @@ void GlobalLinearSystem::apply_preconditioner(muda::DenseVectorView<Float>  z,
 }
 
 
-
 void GlobalLinearSystem::convert_new()
 {
     m_converter.convert(*gipc_global_triplet,
                         0,
                         gipc_global_triplet->global_triplet_offset,
                         gipc_global_triplet->global_triplet_offset);
-//#ifndef SymGH
-//    m_converter.ge2sym(*gipc_global_triplet);
-//#endif
+    //#ifndef SymGH
+    //    m_converter.ge2sym(*gipc_global_triplet);
+    //#endif
 }
-
 
 
 void GlobalLinearSystem::spmv(Float                         a,

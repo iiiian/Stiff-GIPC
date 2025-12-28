@@ -59,7 +59,6 @@ __device__ __GEIGEN__::Matrix3x3d __computePEPF_StableNHK3D2_double(
     const __GEIGEN__::Matrix3x3d& F, const double& I2, const double& I3, double lengthRate, double volumRate);
 
 
-
 __device__ __GEIGEN__::Matrix3x3d __computePEPF_StableNHK3D1_double(
     const __GEIGEN__::Matrix3x3d& F, const double& I2, const double& I3, double lengthRate, double volumRate);
 
@@ -79,18 +78,18 @@ __device__ double __cal_BaraffWitkinStretch_energy(const double3* vertexes,
                                                    const double& shearhStiff,
                                                    double        strainRate);
 __device__ double __cal_StabbleNHK_energy1_3D(const double3* vertexes,
-                                             const uint4&   tetrahedra,
-                                             const __GEIGEN__::Matrix3x3d& DmInverse,
-                                             const double& volume,
-                                             const double& lenRate,
-                                             const double& volRate);
+                                              const uint4&   tetrahedra,
+                                              const __GEIGEN__::Matrix3x3d& DmInverse,
+                                              const double& volume,
+                                              const double& lenRate,
+                                              const double& volRate);
 
 __device__ double __cal_StabbleNHK_energy2_3D(const double3* vertexes,
-                                             const uint4&   tetrahedra,
-                                             const __GEIGEN__::Matrix3x3d& DmInverse,
-                                             const double& volume,
-                                             const double& lenRate,
-                                             const double& volRate);
+                                              const uint4&   tetrahedra,
+                                              const __GEIGEN__::Matrix3x3d& DmInverse,
+                                              const double& volume,
+                                              const double& lenRate,
+                                              const double& volRate);
 
 __device__ double __cal_ARAP_energy_3D(const double3*                vertexes,
                                        const uint4&                  tetrahedra,
@@ -170,14 +169,14 @@ __device__ Eigen::Matrix<double, 9, 12> __computePFPX3D_Eigen_double(const __GEI
 
 __global__ void _calculate_fem_gradient_hessian(__GEIGEN__::Matrix3x3d* DmInverses,
                                                 const double3* vertexes,
-                                                const uint4*   tetrahedras,                                              
-                                                const double* volume,
-                                                double3*      gradient,
-                                                int           tetrahedraNum,
-                                                const double* lenRate,
-                                                const double* volRate,
+                                                const uint4*   tetrahedras,
+                                                const double*  volume,
+                                                double3*       gradient,
+                                                int            tetrahedraNum,
+                                                const double*  lenRate,
+                                                const double*  volRate,
                                                 //uint4*        tet_ids,
-                                                int           global_offset,
+                                                int              global_offset,
                                                 Eigen::Matrix3d* triplet_values,
                                                 int*             row_ids,
                                                 int*             col_ids,
@@ -212,8 +211,8 @@ __global__ void _calculate_fem_gradient(__GEIGEN__::Matrix3x3d* DmInverses,
                                         const double*           volume,
                                         double3*                gradient,
                                         int                     tetrahedraNum,
-                                        double*                  lenRate,
-                                        double*                  volRate,
+                                        double*                 lenRate,
+                                        double*                 volRate,
                                         double                  dt);
 __global__ void _calculate_triangle_fem_gradient(__GEIGEN__::Matrix2x2d* trimInverses,
                                                  const double3* vertexes,

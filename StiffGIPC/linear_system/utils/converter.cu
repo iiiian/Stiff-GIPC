@@ -21,9 +21,9 @@ constexpr bool UseRadixSort   = true;
 constexpr bool UseReduceByKey = false;
 
 void Converter::convert(GIPCTripletMatrix& global_triplets,
-                        const int&                          start,
-                        const int&                          length,
-                        const int&                          out_start_id)
+                        const int&         start,
+                        const int&         length,
+                        const int&         out_start_id)
 {
     gipc::Timer timer("convert3x3");
     if(length < 1)
@@ -42,7 +42,6 @@ void Converter::convert(GIPCTripletMatrix& global_triplets,
 }
 
 
-
 void Converter::_radix_sort_indices_and_blocks(GIPCTripletMatrix& global_triplets,
                                                const int& start,
                                                const int& length,
@@ -53,8 +52,8 @@ void Converter::_radix_sort_indices_and_blocks(GIPCTripletMatrix& global_triplet
     auto src_row_indices = global_triplets.block_row_indices(start);
     auto src_col_indices = global_triplets.block_col_indices(start);
     auto src_blocks      = global_triplets.block_values(start);
-    auto index_input   = global_triplets.block_index();
-    auto ij_hash_input = global_triplets.block_hash_value();
+    auto index_input     = global_triplets.block_index();
+    auto ij_hash_input   = global_triplets.block_hash_value();
 
     ParallelFor(256)
         .file_line(__FILE__, __LINE__)
@@ -79,13 +78,8 @@ void Converter::_radix_sort_indices_and_blocks(GIPCTripletMatrix& global_triplet
     ParallelFor(256)
         .kernel_name("set col row indices")
         .apply(length,
-               [sort_index = global_triplets.block_sort_index(),
-                src_blocks,
-                dst_val] __device__(int i) mutable
-               {
-                   dst_val[i] = src_blocks[sort_index[i]];
-
-               });
+               [sort_index = global_triplets.block_sort_index(), src_blocks, dst_val] __device__(
+                   int i) mutable { dst_val[i] = src_blocks[sort_index[i]]; });
 }
 
 
@@ -123,11 +117,10 @@ void Converter::_make_unique_indices(GIPCTripletMatrix& global_triplets,
 }
 
 
-
-
-
 void Converter::_make_unique_block_warp_reduction(GIPCTripletMatrix& global_triplets,
-                                                  const int& start, const int& length, const int& out_start_id)
+                                                  const int& start,
+                                                  const int& length,
+                                                  const int& out_start_id)
 {
     using namespace muda;
 

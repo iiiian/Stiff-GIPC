@@ -20,7 +20,7 @@ __device__ inline void write_triplet_cv(Eigen::Matrix3d* triplet_value,
 {
     int rown = 4;
     int coln = 4;
-    int kk    = 0;
+    int kk   = 0;
     for(int ii = 0; ii < rown; ii++)
     {
         for(int jj = ii; jj < coln; jj++)
@@ -32,8 +32,6 @@ __device__ inline void write_triplet_cv(Eigen::Matrix3d* triplet_value,
         }
     }
 }
-
-
 
 
 template <int ROWS, int COLS>
@@ -64,8 +62,8 @@ __device__ inline void write_triplet_cv2(Eigen::Matrix3d* triplet_value,
             }
             else
             {
-                row_ids[offset + kk]       = col;
-                col_ids[offset + kk]       = row;
+                row_ids[offset + kk] = col;
+                col_ids[offset + kk] = row;
                 triplet_value[offset + kk].setZero();
             }
         }
@@ -83,25 +81,24 @@ __global__ inline void moveMemory_0(T* data, int output_start, int input_start, 
 }
 
 
-
-__global__ void write_barrier_hessian(//muda::TripletMatrixViewer<double, 12> tripletViewer,
-                                      Eigen::Matrix3d*        triplet,
-                                      int*              rows,
-                                      int*              cols,
-                                      ABDJacobi*        abd_J,
-                                      const int*          body_id,
-                                      const BodyBoundaryType* is_fixed,
-                                      int               start_input,
-                                      int               start_output,
-                                      int               number)
+__global__ void write_barrier_hessian(  //muda::TripletMatrixViewer<double, 12> tripletViewer,
+    Eigen::Matrix3d*        triplet,
+    int*                    rows,
+    int*                    cols,
+    ABDJacobi*              abd_J,
+    const int*              body_id,
+    const BodyBoundaryType* is_fixed,
+    int                     start_input,
+    int                     start_output,
+    int                     number)
 {
     int vI = blockIdx.x * blockDim.x + threadIdx.x;
     if(vI >= number)
         return;
 
-    auto H = triplet[vI + start_input];
-    auto i = rows[vI + start_input];
-    auto j = cols[vI + start_input];
+    auto H         = triplet[vI + start_input];
+    auto i         = rows[vI + start_input];
+    auto j         = cols[vI + start_input];
     auto body_id_i = body_id[i];
     auto body_id_j = body_id[j];
 
@@ -124,9 +121,7 @@ __global__ void write_barrier_hessian(//muda::TripletMatrixViewer<double, 12> tr
         auto ABD_H = ABDJacobi::JT_H_J(abd_J[i].T(), H, abd_J[j]);
         write_triplet_cv2<12, 12>(triplet, rows, cols, index_row, index_col, ABD_H, offset);
     }
-
 }
-
 
 
 __global__ void write_abd_body_hessian(
@@ -421,8 +416,7 @@ void ABDSystem::_cal_abd_system_barrier_gradient(ABDSimData& sim_data,
                });
 }
 
-void ABDSystem::_setup_abd_system_hessian(ABDSimData& sim_data,
-                                          GIPCTripletMatrix& global_triplets)
+void ABDSystem::_setup_abd_system_hessian(ABDSimData& sim_data, GIPCTripletMatrix& global_triplets)
 {
     gipc::Timer timer("_setup_abd_system_hessian");
     using namespace muda;
@@ -439,7 +433,7 @@ void ABDSystem::_setup_abd_system_hessian(ABDSimData& sim_data,
         global_triplets.h_unique_key_number = 0;
     }
 
-    int bcooNum = global_triplets.h_unique_key_number; 
+    int bcooNum = global_triplets.h_unique_key_number;
 
     auto abd_body_count   = sim_data.abd_fem_count_info().abd_body_num;
     auto body_id_is_fixed = sim_data.body_id_to_boundary_type();
@@ -481,34 +475,31 @@ void ABDSystem::_setup_abd_system_hessian(ABDSimData& sim_data,
     {
         {
 
-        gipc::Timer timer("barrier_hessian");
-        auto abd_J = sim_data.device.unique_point_id_to_J.viewer().data();
-        auto is_fixed     = body_id_is_fixed.viewer().data();
-        auto my_triplet   = global_triplets.block_values();
-        auto my_rows      = global_triplets.block_row_indices();
-        auto my_cols      = global_triplets.block_col_indices();
-        auto body_id      = unique_point_id_to_body_id.viewer().data();
-        int  start_input  = global_triplets.h_abd_abd_contact_start_id;
-        int  start_output = new_triplet_offset + h_abd_abd_contact_start_id
-                           + write_offset + 10 * body_hessian_size;
+            gipc::Timer timer("barrier_hessian");
+            auto abd_J = sim_data.device.unique_point_id_to_J.viewer().data();
+            auto is_fixed     = body_id_is_fixed.viewer().data();
+            auto my_triplet   = global_triplets.block_values();
+            auto my_rows      = global_triplets.block_row_indices();
+            auto my_cols      = global_triplets.block_col_indices();
+            auto body_id      = unique_point_id_to_body_id.viewer().data();
+            int  start_input  = global_triplets.h_abd_abd_contact_start_id;
+            int  start_output = new_triplet_offset + h_abd_abd_contact_start_id
+                               + write_offset + 10 * body_hessian_size;
 
-        LaunchCudaKernal_default(bcooNum,
-                                 threadNum,
-                                 0,
-                                 write_barrier_hessian,
-                                 my_triplet,
-                                 my_rows,
-                                 my_cols,
-                                 abd_J,
-                                 body_id,
-                                 is_fixed,
-                                 start_input,
-                                 start_output,
-                                 bcooNum);
+            LaunchCudaKernal_default(bcooNum,
+                                     threadNum,
+                                     0,
+                                     write_barrier_hessian,
+                                     my_triplet,
+                                     my_rows,
+                                     my_cols,
+                                     abd_J,
+                                     body_id,
+                                     is_fixed,
+                                     start_input,
+                                     start_output,
+                                     bcooNum);
         }
-
-
-       
     }
 
     if(global_triplets.abd_fem_contact_num)
@@ -643,7 +634,7 @@ void ABDSystem::_cal_abd_system_preconditioner(ABDSimData& sim_data)
                        }
                    });
         int count = sim_data.abd_fem_count_info().abd_body_num;
-                ParallelFor(256)
+        ParallelFor(256)
             .kernel_name(__FUNCTION__)
             .apply(count,
                    [P = abd_system_diag_preconditioner.viewer().name("P")] __device__(int i) mutable

@@ -17,7 +17,6 @@
 #include "gpu_eigen_libs.cuh"
 
 
-
 __device__ __host__ inline AABB merge(const AABB& lhs, const AABB& rhs) noexcept
 {
     AABB merged;
@@ -79,8 +78,10 @@ __device__ __host__ inline std::uint32_t morton_code(double x,
 
 __device__ __host__ void AABB::combines(const double& x, const double& y, const double& z)
 {
-    lower = make_double3(std::min(lower.x, x), std::min(lower.y, y), std::min(lower.z, z));
-    upper = make_double3(std::max(upper.x, x), std::max(upper.y, y), std::max(upper.z, z));
+    lower =
+        make_double3(std::min(lower.x, x), std::min(lower.y, y), std::min(lower.z, z));
+    upper =
+        make_double3(std::max(upper.x, x), std::max(upper.y, y), std::max(upper.z, z));
 }
 
 __device__ __host__ void AABB::combines(const double& x,
@@ -90,9 +91,10 @@ __device__ __host__ void AABB::combines(const double& x,
                                         const double& yy,
                                         const double& zz)
 {
-    lower = make_double3(std::min(lower.x, x), std::min(lower.y, y), std::min(lower.z, z));
-    upper =
-        make_double3(std::max(upper.x, xx), std::max(upper.y, yy), std::max(upper.z, zz));
+    lower =
+        make_double3(std::min(lower.x, x), std::min(lower.y, y), std::min(lower.z, z));
+    upper = make_double3(
+        std::max(upper.x, xx), std::max(upper.y, yy), std::max(upper.z, zz));
 }
 
 __host__ __device__ void AABB::combines(const AABB& aabb)

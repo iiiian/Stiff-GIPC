@@ -409,7 +409,7 @@ __device__ double edge_edge_ccd(const double3& _ea0,
         double dists3 = __GEIGEN__::__squaredNorm(__GEIGEN__::__minus(ea1, eb1));
 
         dist2_cur = std::min(std::min(dists0, dists1), std::min(dists2, dists3));
-        dFunc     = dist2_cur - thickness * thickness;
+        dFunc = dist2_cur - thickness * thickness;
     }
     double dist_cur = sqrt(dist2_cur);
     double gap      = eta * dFunc / (dist_cur + thickness);

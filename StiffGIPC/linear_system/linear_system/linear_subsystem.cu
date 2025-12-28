@@ -35,7 +35,7 @@ void DiagonalSubsystem::right_hand_side_dof(SizeT right_hand_side_dof)
 
 Json DiagonalSubsystem::as_json() const
 {
-    auto j                   = Base::as_json();
+    auto j = Base::as_json();
     //j["hessian_block_count"] = hessian_block_count();
     j["right_hand_side_dof"] = right_hand_side_dof();
     return j;
@@ -69,4 +69,4 @@ muda::LinearSystemContext& ILinearSubsystem::ctx() const
     return m_system->m_context;
 }
 
-}  // namespace gipc::linear_system
+}  // namespace gipc

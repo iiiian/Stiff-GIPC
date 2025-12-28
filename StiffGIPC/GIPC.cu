@@ -7387,7 +7387,6 @@ __global__ void _getKineticEnergy_Reduction_3D(
 }
 
 
-
 __global__ void _getBendingEnergy_Reduction(double*        squeue,
                                             const double3* vertexes,
                                             const double3* rest_vertexex,
@@ -9739,8 +9738,6 @@ void sortGeometry(device_TetraData& TetMesh,
                   const int&        tetradedra_num,
                   const int&        triangle_num)
 {
-
-
 }
 
 ////////////////////////TO DO LATER/////////////////////////////////////////
@@ -10097,8 +10094,8 @@ float GIPC::computeGradientAndHessian(device_TetraData& TetMesh)
                     BDType = TetMesh.BoundaryType,
                     fem_global_hessian_index_offset] __device__(int i) mutable
                    {
-                       int row = cfem_rows[i];
-                       int col = cfem_cols[i];
+                       int row    = cfem_rows[i];
+                       int col    = cfem_cols[i];
                        int btypeA = BDType[row];
                        int btypeB = BDType[col];
                        if(row <= col)
@@ -10183,12 +10180,11 @@ float GIPC::computeGradientAndHessian(device_TetraData& TetMesh)
         muda::ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(fem_triplet_num,
-                   [  
-                       cfem_rows = gipc_global_triplet.block_row_indices(fem_triplet_start),
-                       cfem_cols = gipc_global_triplet.block_col_indices(fem_triplet_start),
-                       triplet_fem = gipc_global_triplet.block_values(fem_triplet_start),
-                       BDType = TetMesh.BoundaryType,
-                       hess_index2fem_index = fem_global_hessian_index_offset] __device__(int i) mutable
+                   [cfem_rows = gipc_global_triplet.block_row_indices(fem_triplet_start),
+                    cfem_cols = gipc_global_triplet.block_col_indices(fem_triplet_start),
+                    triplet_fem = gipc_global_triplet.block_values(fem_triplet_start),
+                    BDType = TetMesh.BoundaryType,
+                    hess_index2fem_index = fem_global_hessian_index_offset] __device__(int i) mutable
                    {
                        int row    = cfem_rows[i];
                        int col    = cfem_cols[i];
@@ -10742,8 +10738,8 @@ int              GIPC::solve_subIP(device_TetraData& TetMesh,
     int iterCap = 10000, k = 0;
 
     CUDA_SAFE_CALL(cudaMemset(_moveDir, 0, vertexNum * sizeof(double3)));
-    double xdelta0 = 0.0;
-    bool has_xdelta0 = false;
+    double xdelta0       = 0.0;
+    bool   has_xdelta0   = false;
     double totalTimeStep = 0;
     for(; k < iterCap; ++k)
     {
@@ -10772,7 +10768,7 @@ int              GIPC::solve_subIP(device_TetraData& TetMesh,
         double xdelta = calcMinMovement(_moveDir, pcg_data.squeue, vertexNum);
         if(k == 1)
         {
-            xdelta0 = xdelta;
+            xdelta0     = xdelta;
             has_xdelta0 = true;
         }
         // scene_diag is the L2 norm of the bbox diagonal of all non-obstacle objects.
@@ -10791,8 +10787,8 @@ int              GIPC::solve_subIP(device_TetraData& TetMesh,
 
         if(useGround)
         {
-            alpha =
-                std::min(alpha, ground_largestFeasibleStepSize(slackness_a, pcg_data.squeue));
+            alpha = std::min(
+                alpha, ground_largestFeasibleStepSize(slackness_a, pcg_data.squeue));
         }
         //alpha = std::min(alpha, InjectiveStepSize(0.2, 1e-6, pcg_data.squeue, TetMesh.tetrahedras));
         alpha = std::min(

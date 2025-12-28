@@ -97,8 +97,8 @@ Float ABDSystem::cal_abd_kinetic_energy(ABDSimData& sim_data)
                            dq.segment<3>(3) = Vector3::Zero();
 
                            Matrix12x12 PowMass = Matrix12x12::Zero();
-                           PowMass.block<6, 6>(6, 6) = //1000 * Matrix6x6::Identity();
-                           motor_strength * Ms(i).to_mat().block<6, 6>(6, 6);
+                           PowMass.block<6, 6>(6, 6) =  //1000 * Matrix6x6::Identity();
+                               motor_strength * Ms(i).to_mat().block<6, 6>(6, 6);
 
                            K += 0.5 * dq.dot(PowMass * dq);
                        }

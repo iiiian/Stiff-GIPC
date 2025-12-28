@@ -13,10 +13,10 @@ void ABDSystem::update_velocity(ABDSimData& sim_data)
         .kernel_name(__FUNCTION__)
         .apply(abd.body_id_to_q.size(),
                [boundary_type = boundary_type.cviewer().name("btype"),
-                qs       = abd.body_id_to_q.cviewer().name("qs"),
-                q_vs     = abd.body_id_to_q_v.viewer().name("q_vs"),
-                q_prevs  = abd.body_id_to_q_prev.viewer().name("q_prevs"),
-                dt       = parms.dt] __device__(int i) mutable
+                qs            = abd.body_id_to_q.cviewer().name("qs"),
+                q_vs          = abd.body_id_to_q_v.viewer().name("q_vs"),
+                q_prevs       = abd.body_id_to_q_prev.viewer().name("q_prevs"),
+                dt            = parms.dt] __device__(int i) mutable
                {
                    auto& q_v    = q_vs(i);
                    auto& q_prev = q_prevs(i);

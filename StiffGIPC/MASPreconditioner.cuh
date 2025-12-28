@@ -39,7 +39,7 @@ class MASPreconditioner
     __GEIGEN__::MasMatrixT*    d_MatMas;
     __GEIGEN__::MasMatrixSymT* d_inverseMatMas;
     __GEIGEN__::MasMatrixSymf* d_precondMatMas;
-    Eigen::Vector3f*              d_multiLevelR;
+    Eigen::Vector3f*           d_multiLevelR;
     Precision_T3*              d_multiLevelZ;
 
   public:
@@ -95,8 +95,8 @@ class MASPreconditioner
     void preconditioning(const double3* R, double3* Z);
     void BuildMultiLevelR(const double3* R);  // called in preconditioning
     void SchwarzLocalXSym();                  // called in preconditioning
-    void SchwarzLocalXSym_block3();                  // called in preconditioning
-    void SchwarzLocalXSym_sym();           // called in preconditioning
+    void SchwarzLocalXSym_block3();           // called in preconditioning
+    void SchwarzLocalXSym_sym();              // called in preconditioning
     void CollectFinalZ(double3* Z);           // called in preconditioning
 
     void FreeMAS();

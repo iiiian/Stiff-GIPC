@@ -102,5 +102,4 @@ void device_TetraData::FREE_DEVICE_MEM()
     CUDA_SAFE_CALL(cudaFree(body_id_to_boundary_type));
     CUDA_SAFE_CALL(cudaFree(point_id_to_body_id));
     CUDA_SAFE_CALL(cudaFree(tet_id_to_body_id));
-
 }

@@ -56,12 +56,11 @@ uint32_t* LocalPreconditioner::calculate_subsystem_bcoo_indices(int& number) con
                    flags[I]         = valid ? 1 : 0;
                });
 
-    muda::DeviceSelect().Flagged(
-        index_input,
-        flags,
-        index_output,
-        m_system->gipc_global_triplet->d_unique_key_number,
-        m_system->gipc_global_triplet->h_unique_key_number);
+    muda::DeviceSelect().Flagged(index_input,
+                                 flags,
+                                 index_output,
+                                 m_system->gipc_global_triplet->d_unique_key_number,
+                                 m_system->gipc_global_triplet->h_unique_key_number);
 
     int h_count;
     CUDA_SAFE_CALL(cudaMemcpy(&h_count,
@@ -100,7 +99,6 @@ void LocalPreconditioner::do_assemble(GIPCTripletMatrix& global_triplets)
 {
     assemble();
 }
-
 
 
 void GlobalPreconditioner::do_apply(muda::CDenseVectorView<Float> r,

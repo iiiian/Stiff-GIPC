@@ -6,7 +6,7 @@ namespace gipc
 namespace details
 {
 
-    void diag_assemble(muda::BufferView<gipc::Matrix<3, 3>>  diag_inv,
+    void diag_assemble(muda::BufferView<gipc::Matrix<3, 3>> diag_inv,
                        GIPCTripletMatrix&                   global_triplets)
     {
         using namespace muda;
@@ -14,14 +14,14 @@ namespace details
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(global_triplets.h_unique_key_number,
-                   [diag = diag_inv.viewer().name("diag"),
+                   [diag    = diag_inv.viewer().name("diag"),
                     hessian = global_triplets.block_values(),
-                    rows = global_triplets.block_row_indices(),
+                    rows    = global_triplets.block_row_indices(),
                     cols = global_triplets.block_col_indices()] __device__(int I) mutable
                    {
-                       auto i           = rows[I];
-                       auto j           = cols[I];
-                       auto H           = hessian[I];
+                       auto i = rows[I];
+                       auto j = cols[I];
+                       auto H = hessian[I];
                        if(i != j)
                            return;
 
@@ -59,9 +59,9 @@ void DiagPreconditioner::assemble(GIPCTripletMatrix& global_triplets)
 }
 
 void DiagPreconditioner::apply(muda::CDenseVectorView<gipc::Float> r,
-                                  muda::DenseVectorView<gipc::Float>  z)
+                               muda::DenseVectorView<gipc::Float>  z)
 {
     //z.buffer_view().copy_from(r.buffer_view());
     details::apply_diag(r, z, m_diag3x3);
 }
-}  // namespace OLD_GIPC
+}  // namespace gipc

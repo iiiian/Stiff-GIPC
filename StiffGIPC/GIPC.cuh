@@ -104,9 +104,9 @@ class GIPC
     uint32_t tetrahedraNum  = 0;
 
     GIPCTripletMatrix gipc_global_triplet;
-    AABB     SceneSize;
-    int      MAX_COLLITION_PAIRS_NUM     = 0;
-    int      MAX_CCD_COLLITION_PAIRS_NUM = 0;
+    AABB              SceneSize;
+    int               MAX_COLLITION_PAIRS_NUM     = 0;
+    int               MAX_CCD_COLLITION_PAIRS_NUM = 0;
 
     double RestNHEnergy       = 0.0;
     double animation_subRate  = 0.0;
@@ -116,29 +116,29 @@ class GIPC
     double bendStiff = 0.0;
 
 
-    double density                 = 0.0;
-    double YoungModulus            = 0.0;
-    double PoissonRate             = 0.0;
-    double lengthRateLame          = 0.0;
-    double volumeRateLame          = 0.0;
-    double lengthRate              = 0.0;
-    double volumeRate              = 0.0;
-    double frictionRate            = 0.0;
-    double gd_frictionRate         = 0.0;
-    bool   useGround               = false;
-    double clothThickness          = 0.0;
-    double clothYoungModulus       = 0.0;
-    double bendYoungModulus        = 0.0;
-    double stretchStiff            = 0.0;
-    double shearStiff              = 0.0;
-    double strainRate              = 0.0;
-    double clothDensity            = 0.0;
-    double softMotionRate          = 0.0;
-    double abs_xdelta_tol          = 0.0;
-    double rel_xdelta_tol          = 0.0;
-    double pcg_rel_threshold                 = 0.0;
-    double pcg_abs_threshold                 = 0.0;
-    bool   pcg_use_preconditioned_norm       = true;
+    double density                     = 0.0;
+    double YoungModulus                = 0.0;
+    double PoissonRate                 = 0.0;
+    double lengthRateLame              = 0.0;
+    double volumeRateLame              = 0.0;
+    double lengthRate                  = 0.0;
+    double volumeRate                  = 0.0;
+    double frictionRate                = 0.0;
+    double gd_frictionRate             = 0.0;
+    bool   useGround                   = false;
+    double clothThickness              = 0.0;
+    double clothYoungModulus           = 0.0;
+    double bendYoungModulus            = 0.0;
+    double stretchStiff                = 0.0;
+    double shearStiff                  = 0.0;
+    double strainRate                  = 0.0;
+    double clothDensity                = 0.0;
+    double softMotionRate              = 0.0;
+    double abs_xdelta_tol              = 0.0;
+    double rel_xdelta_tol              = 0.0;
+    double pcg_rel_threshold           = 0.0;
+    double pcg_abs_threshold           = 0.0;
+    bool   pcg_use_preconditioned_norm = true;
 
     gipc::ABDFEMCountInfo abd_fem_count_info{};
 
@@ -180,7 +180,7 @@ class GIPC
 
     void partitionContactHessian();
 
-    void  computeGroundGradient(double3* _gradient, double mKap);
+    void computeGroundGradient(double3* _gradient, double mKap);
     void computeSoftConstraintGradientAndHessian(double3* _gradient,
                                                  int global_hessian_fem_offset);
 

@@ -155,7 +155,7 @@ void apply_settings(GIPC&             ipc,
     ipc.pcg_use_preconditioned_norm = s.at("pcg_use_preconditioned_norm").get<bool>();
     ipc.abs_xdelta_tol = s.at("abs_xdelta_tol").get<double>();
     ipc.rel_xdelta_tol = s.at("rel_xdelta_tol").get<double>();
-    ipc.relative_dhat           = s.at("IPC_ralative_dHat").get<double>();
+    ipc.relative_dhat  = s.at("IPC_ralative_dHat").get<double>();
 
     // As far as I am awared, below lame parameters are not used anywhere.
     // For FEM simulation, the true lame parameter is computed in initFEM().
@@ -202,8 +202,7 @@ void initFEM(tetrahedra_obj& mesh)
 
         const double poisson_ratio = mesh.tet_poisson_ratios[i];
 
-        double lengthRateLame =
-            mesh.vert_youngth_modules[i] / (2 * (1 + poisson_ratio));
+        double lengthRateLame = mesh.vert_youngth_modules[i] / (2 * (1 + poisson_ratio));
         double volumeRateLame = mesh.vert_youngth_modules[i] * poisson_ratio
                                 / ((1 + poisson_ratio) * (1 - 2 * poisson_ratio));
         // Since we are no longer using SNK energy, remove the lame parameter offsets.
@@ -305,10 +304,9 @@ int main(int argc, char** argv)
     // This call stores a reference to d_tetMesh.
     ipc.build_gipc_system(d_tetMesh);
 
-    double3 non_obstacle_min =
-        make_double3(std::numeric_limits<double>::infinity(),
-                     std::numeric_limits<double>::infinity(),
-                     std::numeric_limits<double>::infinity());
+    double3 non_obstacle_min = make_double3(std::numeric_limits<double>::infinity(),
+                                            std::numeric_limits<double>::infinity(),
+                                            std::numeric_limits<double>::infinity());
     double3 non_obstacle_max =
         make_double3(-std::numeric_limits<double>::infinity(),
                      -std::numeric_limits<double>::infinity(),

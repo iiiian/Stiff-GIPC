@@ -4,7 +4,6 @@
 #include <cuda_tools/cuda_tools.h>
 
 
-
 __global__ void PCG_vdv_Reduction(double* squeue, const double* a, const double* b, int numbers)
 {
     int idof = blockIdx.x * blockDim.x;
@@ -17,10 +16,10 @@ __global__ void PCG_vdv_Reduction(double* squeue, const double* a, const double*
 
     double temp = a[idx] * b[idx];
 
-    int    warpTid = threadIdx.x % 32;
-    int    warpId  = (threadIdx.x >> 5);
+    int warpTid = threadIdx.x % 32;
+    int warpId  = (threadIdx.x >> 5);
     //double nextTp;
-    int    warpNum;
+    int warpNum;
     if(blockIdx.x == gridDim.x - 1)
     {
         warpNum = ((numbers - idof + 31) >> 5);
@@ -55,15 +54,14 @@ __global__ void PCG_vdv_Reduction(double* squeue, const double* a, const double*
 }
 
 
-
 __global__ void add_reduction(double* mem, int numbers)
 {
-    int idof = blockIdx.x * blockDim.x;
-    int idx  = threadIdx.x + idof;
+    int                      idof = blockIdx.x * blockDim.x;
+    int                      idx  = threadIdx.x + idof;
     extern __shared__ double tep[];
     if(idx >= numbers)
         return;
-    double temp = mem[idx];
+    double temp    = mem[idx];
     int    warpTid = threadIdx.x % 32;
     int    warpId  = (threadIdx.x >> 5);
     int    warpNum;
@@ -101,7 +99,6 @@ __global__ void add_reduction(double* mem, int numbers)
 }
 
 
-
 __global__ void update_vector_dx_r(
     double* dx, double* r, const double* c, const double* q, double alpha, int numbers)
 {
@@ -112,8 +109,7 @@ __global__ void update_vector_dx_r(
     r[idx]  = r[idx] - alpha * q[idx];
 }
 
-__global__ void update_vector_c(
-    double* c, const double* s, double beta, int numbers)
+__global__ void update_vector_c(double* c, const double* s, double beta, int numbers)
 {
     int idx = threadIdx.x + blockIdx.x * blockDim.x;
     if(idx >= numbers)

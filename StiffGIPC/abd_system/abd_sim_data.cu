@@ -59,7 +59,7 @@ muda::CBufferView<BodyBoundaryType> ABDSimData::body_id_to_boundary_type() const
     auto offset = abd_fem_count_info().abd_body_offset;
     auto num    = abd_fem_count_info().abd_body_num;
     return muda::CBufferView<BodyBoundaryType>{m_tet.body_id_to_boundary_type,
-                                  m_gipc.abd_fem_count_info.total_body_num()}
+                                               m_gipc.abd_fem_count_info.total_body_num()}
         .subview(offset, num);
 }
 

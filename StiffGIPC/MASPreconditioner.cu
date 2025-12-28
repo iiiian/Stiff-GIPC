@@ -625,8 +625,6 @@ __global__ void _aggregationKernel(int*                _denseLevel,
 }
 
 
-
-
 __global__ void __inverse6_P96x96(__GEIGEN__::MasMatrixSymf* _preMatrix,
                                   __GEIGEN__::MasMatrixSymT* _invMatrix,
                                   int                        numbers)
@@ -726,14 +724,14 @@ __global__ void __inverse6_P96x96(__GEIGEN__::MasMatrixSymf* _preMatrix,
 }
 
 
-__global__ void __buildMultiLevelR_optimized_new(const double3* _R,
-                                                 Eigen::Vector3f*  _multiLR,
-                                                 int*           _goingNext,
-                                                 int*           _prefixOrigin,
-                                                 unsigned int*  _fineConnectMsk,
-                                                 int* _partId_map_real,
-                                                 int  levelNum,
-                                                 int  numbers)
+__global__ void __buildMultiLevelR_optimized_new(const double3*   _R,
+                                                 Eigen::Vector3f* _multiLR,
+                                                 int*             _goingNext,
+                                                 int*             _prefixOrigin,
+                                                 unsigned int* _fineConnectMsk,
+                                                 int*          _partId_map_real,
+                                                 int           levelNum,
+                                                 int           numbers)
 {
     int pdx = blockIdx.x * blockDim.x + threadIdx.x;
     if(pdx >= numbers)
@@ -879,9 +877,8 @@ __global__ void __collectFinalZ_new(double3*                  _Z,
 }
 
 
-
 __global__ void _schwarzLocalXSym3(const __GEIGEN__::MasMatrixSymf* Pred,
-                                   const Eigen::Vector3f*              mR,
+                                   const Eigen::Vector3f*           mR,
                                    Precision_T3*                    mZ,
                                    int                              number)
 {
@@ -1071,13 +1068,12 @@ __global__ void _schwarzLocalXSym9(const __GEIGEN__::MasMatrixSymf* Pred,
         prev_i = row_ids[threadIdx.x - 1];
     }
 
-    auto block_value = Pred[Hid].M[index];
-    Eigen::Vector3f rdata = block_value * mR[vcid];
+    auto            block_value = Pred[Hid].M[index];
+    Eigen::Vector3f rdata       = block_value * mR[vcid];
 
     if(vrid != vcid)  // process lower triangle
     {
-        Eigen::Vector3f vec_ =
-            block_value.transpose() * mR[vrid];
+        Eigen::Vector3f vec_ = block_value.transpose() * mR[vrid];
 
         atomicAdd((&(mZ[vcid].x)), vec_[0]);
         atomicAdd((&(mZ[vcid].y)), vec_[1]);
@@ -1547,7 +1543,7 @@ void MASPreconditioner::BuildConnectMaskL0()
 
     //int number = totalNodes;
 #ifdef GROUP
-    int number    = totalMapNodes;
+    int number = totalMapNodes;
     if(number < 1)
         return;
     int blockSize = DEFAULT_BLOCKSIZE;
@@ -1574,7 +1570,7 @@ void MASPreconditioner::PreparePrefixSumL0()
 {
     //int number = totalNodes;
 #ifdef GROUP
-    int number    = totalMapNodes;
+    int number = totalMapNodes;
     if(number < 1)
         return;
     int blockSize = DEFAULT_BLOCKSIZE;
@@ -1583,7 +1579,7 @@ void MASPreconditioner::PreparePrefixSumL0()
     _preparePrefixSumL0_new<<<numBlocks, blockSize>>>(
         d_prefixOriginal, d_fineConnectMask, d_partId_map_real, number);
 #else
-    int number    = totalNodes;
+    int number = totalNodes;
     if(number < 1)
         return;
     int blockSize = DEFAULT_BLOCKSIZE;
@@ -1597,7 +1593,7 @@ void MASPreconditioner::BuildLevel1()
 {
     //int number = totalNodes;
 #ifdef GROUP
-    int number    = totalMapNodes;
+    int number = totalMapNodes;
     if(number < 1)
         return;
     int blockSize = BANKSIZE * BANKSIZE;
@@ -1638,7 +1634,7 @@ void MASPreconditioner::BuildConnectMaskLx(int level)
 {
     //int number = totalNodes;
 #ifdef GROUP
-    int number    = totalMapNodes;
+    int number = totalMapNodes;
     if(number < 1)
         return;
     int blockSize = DEFAULT_BLOCKSIZE;
@@ -1654,7 +1650,7 @@ void MASPreconditioner::BuildConnectMaskLx(int level)
                                                       totalNodes,
                                                       number);
 #else
-    int number    = totalNodes;
+    int number = totalNodes;
     if(number < 1)
         return;
     int blockSize = DEFAULT_BLOCKSIZE;
@@ -1672,7 +1668,7 @@ void MASPreconditioner::BuildConnectMaskLx(int level)
 
 void MASPreconditioner::NextLevelCluster(int level)
 {
-    int number    = h_clevelSize.x;
+    int number = h_clevelSize.x;
     if(number < 1)
         return;
     int blockSize = DEFAULT_BLOCKSIZE;
@@ -1682,7 +1678,7 @@ void MASPreconditioner::NextLevelCluster(int level)
 
 void MASPreconditioner::ComputeNextLevel(int level)
 {
-    int number    = totalNodes;
+    int number = totalNodes;
     if(number < 1)
         return;
     int blockSize = DEFAULT_BLOCKSIZE;
@@ -1693,7 +1689,7 @@ void MASPreconditioner::ComputeNextLevel(int level)
 
 void MASPreconditioner::PrefixSumLx(int level)
 {
-    int number     = h_clevelSize.x;
+    int number = h_clevelSize.x;
     if(number < 1)
         return;
     int levelBegin = h_clevelSize.y;
@@ -1711,7 +1707,7 @@ void MASPreconditioner::PrefixSumLx(int level)
 
 void MASPreconditioner::AggregationKernel()
 {
-    int number    = totalNodes;
+    int number = totalNodes;
     if(number < 1)
         return;
     int blockSize = DEFAULT_BLOCKSIZE;
@@ -1747,7 +1743,7 @@ void MASPreconditioner::BuildCollisionConnection(unsigned int* connectionMsk,
                                                  int           level,
                                                  int           cpNum)
 {
-    int number    = cpNum;
+    int number = cpNum;
     if(number < 1)
         return;
     int blockSize = DEFAULT_BLOCKSIZE;
@@ -1796,11 +1792,9 @@ int MASPreconditioner::ReorderRealtime(int cpNum)
         NextLevelCluster(level);
 
 
-
         PrefixSumLx(level);
 
         ComputeNextLevel(level);
-
     }
 
     CUDA_SAFE_CALL(cudaMemcpy(&h_clevelSize, d_levelSize + levelnum, sizeof(int2), cudaMemcpyDeviceToHost));
@@ -1828,7 +1822,6 @@ void MASPreconditioner::PrepareHessian_bcoo(Eigen::Matrix3d* triplet_values,
     //cudaEventRecord(start);
 
 
-
     using namespace muda;
     int tripletNum = triplet_number;
     if(true)
@@ -1843,12 +1836,14 @@ void MASPreconditioner::PrepareHessian_bcoo(Eigen::Matrix3d* triplet_values,
                  _invMatrix       = d_inverseMatMas,
                  _real_map_partId = d_real_map_partId,
                  indices,
-                 triplet_values, row_ids, col_ids] __device__(int I) mutable
+                 triplet_values,
+                 row_ids,
+                 col_ids] __device__(int I) mutable
                 {
-                    int index                              = indices[I];
-                    auto vertRid_real                      = row_ids[index];
-                    auto vertCid_real                       = col_ids[index];
-                    auto H = triplet_values[index];
+                    int  index        = indices[I];
+                    auto vertRid_real = row_ids[index];
+                    auto vertCid_real = col_ids[index];
+                    auto H            = triplet_values[index];
                     //auto&& [vertRid_real, vertCid_real, H] = hessian(index);
                     vertRid_real -= offset;
                     vertCid_real -= offset;
@@ -1898,14 +1893,12 @@ void MASPreconditioner::PrepareHessian_bcoo(Eigen::Matrix3d* triplet_values,
                                     {
                                         for(int j = 0; j < 3; j++)
                                         {
-                                            atomicAdd(
-                                                &(_invMatrix[cPid].M[index](i, j)),
-                                                H(i, j));
+                                            atomicAdd(&(_invMatrix[cPid].M[index](i, j)),
+                                                      H(i, j));
                                             if(vertCid == vertRid)
                                             {
-                                                atomicAdd(
-                                                    &(_invMatrix[cPid].M[index](i, j)),
-                                                    H(j, i));
+                                                atomicAdd(&(_invMatrix[cPid].M[index](i, j)),
+                                                          H(j, i));
                                             }
                                         }
                                     }
@@ -1981,7 +1974,7 @@ void MASPreconditioner::PrepareHessian_bcoo(Eigen::Matrix3d* triplet_values,
                             int warpId = threadIdx.x & 0x1f;
                             bool bBoundary = (warpId == 0) || (rdx < 0) || (cdx < 0);
                             unsigned int mark = __ballot_sync(0xffffffff, bBoundary);
-                            mark = __brev(mark);
+                            mark       = __brev(mark);
                             int clzlen = __clz(mark << (warpId + 1));
                             unsigned int interval = std::min(clzlen, 31 - warpId);
                             for(int iter = 1; iter < 32; iter <<= 1)
@@ -2016,9 +2009,8 @@ void MASPreconditioner::PrepareHessian_bcoo(Eigen::Matrix3d* triplet_values,
                                     {
                                         for(int j = 0; j < 3; j++)
                                         {
-                                            atomicAdd(
-                                                &(_invMatrix[cPid].M[index](i, j)),
-                                                mat3(i, j));
+                                            atomicAdd(&(_invMatrix[cPid].M[index](i, j)),
+                                                      mat3(i, j));
                                         }
                                     }
                                     nextId = _goingNext[nextId];
@@ -2061,14 +2053,13 @@ void MASPreconditioner::PrepareHessian_bcoo(Eigen::Matrix3d* triplet_values,
                     }
                 });
     }
-    
 
 
     //cudaEventRecord(end0);
     //CUDA_SAFE_CALL(cudaDeviceSynchronize());
     int blockSize2 = 32 * 3;
     //int number2    = totalNumberClusters / BANKSIZE;
-    int number2    = totalNumberClusters * 3;
+    int number2 = totalNumberClusters * 3;
     if(number2 < 1)
         return;
     int numBlocks2 = (number2 + blockSize2 - 1) / blockSize2;
@@ -2120,7 +2111,7 @@ void MASPreconditioner::BuildMultiLevelR(const double3* R)
 void MASPreconditioner::SchwarzLocalXSym()
 {
     //int matNum    = totalNumberClusters / BANKSIZE;
-    int number    = totalNumberClusters * BANKSIZE * 3;
+    int number = totalNumberClusters * BANKSIZE * 3;
     if(number < 1)
         return;
     int blockSize = BANKSIZE * BANKSIZE;
@@ -2147,7 +2138,7 @@ void MASPreconditioner::SchwarzLocalXSym_block3()
 
 void MASPreconditioner::SchwarzLocalXSym_sym()
 {
-    int matNum    = totalNumberClusters / BANKSIZE;
+    int matNum = totalNumberClusters / BANKSIZE;
     int number = matNum * (1 + BANKSIZE) * BANKSIZE / 2;
     if(number < 1)
         return;
@@ -2172,9 +2163,7 @@ void MASPreconditioner::CollectFinalZ(double3* Z)
 #else
     __collectFinalZ<<<numBlocks, blockSize>>>(Z, d_multiLevelZ, d_coarseTable, levelnum, number);
 #endif
-
 }
-
 
 
 void MASPreconditioner::setPreconditioner_bcoo(Eigen::Matrix3d* triplet_values,
