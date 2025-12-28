@@ -565,6 +565,13 @@ int main(int argc, char** argv)
 
     fs::create_directories(output_dir);
 
+    // Write initial (pre-simulation) state as frame 0.
+    CUDA_SAFE_CALL(cudaMemcpy(tetMesh.vertexes.data(),
+                              ipc._vertexes,
+                              ipc.vertexNum * sizeof(double3),
+                              cudaMemcpyDeviceToHost));
+    write_obj(frame_obj_path(output_dir, 0), tetMesh);
+
     for(int frame = 0; frame < frames; ++frame)
     {
         ipc.IPC_Solver(d_tetMesh);
@@ -581,7 +588,7 @@ int main(int argc, char** argv)
                                   ipc._vertexes,
                                   ipc.vertexNum * sizeof(double3),
                                   cudaMemcpyDeviceToHost));
-        write_obj(frame_obj_path(output_dir, frame), tetMesh);
+        write_obj(frame_obj_path(output_dir, frame + 1), tetMesh);
     }
 
     return 0;

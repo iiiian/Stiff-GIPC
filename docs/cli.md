@@ -25,7 +25,7 @@ outputs (per input mesh):
 ```
 
 Outputs:
-- `output/free_fall_cli/frame_00000.obj`, `frame_00001.obj`, ... (one per frame)
+- `output/free_fall_cli/frame_00000.obj` (initial/pre-sim), `frame_00001.obj`, ... (one per solver frame)
 - `output/free_fall_cli/stats.json` (overwritten each frame with accumulated stats/timers)
 
 ## `stats.json` (status output format)
@@ -201,12 +201,13 @@ Newton stops when **either** condition is satisfied.
 ### `frames`
 - **Type:** int
   ```cpp
+  write_obj(..., 0); // initial/pre-sim
   for(int frame = 0; frame < frames; ++frame) {
       ipc.IPC_Solver(d_tetMesh);
-      write_obj(...);
+      write_obj(..., frame + 1);
   }
   ```
-- **Effect:** Number of simulation frames to run. Each frame calls `IPC_Solver()` once and outputs one `.obj` file.
+- **Effect:** Number of solver frames to run. Writes one extra `.obj` at frame 0 before running the solver.
 
 ### `preconditioner_type`
 - **Type:** int
