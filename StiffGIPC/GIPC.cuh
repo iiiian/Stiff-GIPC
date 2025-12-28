@@ -139,6 +139,7 @@ class GIPC
     double pcg_rel_threshold           = 0.0;
     double pcg_abs_threshold           = 0.0;
     bool   pcg_use_preconditioned_norm = true;
+    int    pcg_max_iter                = 0;
 
     gipc::ABDFEMCountInfo abd_fem_count_info{};
 

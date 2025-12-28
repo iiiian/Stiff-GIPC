@@ -15,6 +15,7 @@
     "ipc_time_step": 0.1,
     "pcg_rel_threshold": 0.01,
     "pcg_abs_threshold": 0.0,
+    "pcg_max_iter": 0,
     "pcg_use_preconditioned_norm": false,
     "abs_xdelta_tol": 0.001,
     "rel_xdelta_tol": 0.01,

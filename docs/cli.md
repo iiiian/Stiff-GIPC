@@ -161,6 +161,15 @@ Top-level:
   ```
 - **Effect:** Absolute tolerance for PCG convergence. Stops when `||r|| <= pcg_abs_threshold` (if `pcg_abs_threshold > 0`).
 
+### `pcg_max_iter`
+- **Type:** int
+- **Stored in:** `ipc.pcg_max_iter`
+- **Used in:** `gipc/gipc.cu`
+  ```cpp
+  cfg.max_iter = pcg_max_iter;
+  ```
+- **Effect:** Maximum number of PCG iterations. `0` = unlimited (falls back to dof count).
+
 ### `pcg_use_preconditioned_norm`
 - **Type:** bool
 - **Stored in:** `ipc.pcg_use_preconditioned_norm`

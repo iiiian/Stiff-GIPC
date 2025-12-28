@@ -153,6 +153,7 @@ void apply_settings(GIPC&             ipc,
     ipc.pcg_rel_threshold = s.at("pcg_rel_threshold").get<double>();
     ipc.pcg_abs_threshold = s.at("pcg_abs_threshold").get<double>();
     ipc.pcg_use_preconditioned_norm = s.at("pcg_use_preconditioned_norm").get<bool>();
+    ipc.pcg_max_iter = s.at("pcg_max_iter").get<int>();
     ipc.abs_xdelta_tol = s.at("abs_xdelta_tol").get<double>();
     ipc.rel_xdelta_tol = s.at("rel_xdelta_tol").get<double>();
     ipc.relative_dhat  = s.at("IPC_ralative_dHat").get<double>();

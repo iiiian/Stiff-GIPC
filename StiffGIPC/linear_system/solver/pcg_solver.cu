@@ -161,7 +161,7 @@ SizeT PCGSolver::solve(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Fl
     r.resize(b.size());
     //temp.resize(b.size());
     Ap.resize(b.size());
-    auto iter = pcg(x, b, m_config.max_iter_ratio * b.size());
+    auto iter = pcg(x, b, m_config.max_iter == 0 ? b.size() : m_config.max_iter);
 
     return iter;
 }

@@ -6,15 +6,12 @@ namespace gipc
 class PCGSolverConfig
 {
   public:
-    /**
-     * \brief the maximum number of iterations will be:
-     *  dof * max_iter_ratio
-     */
-    Float max_iter_ratio  = 0.3;
-    Float rel_tol = 1e-2;
-    Float abs_tol = 0.0;
+    // 0 means unlimited.
+    SizeT max_iter                         = 0;
+    Float rel_tol                          = 1e-2;
+    Float abs_tol                          = 0.0;
     bool  use_preconditioned_residual_norm = true;
-    bool  use_bsr         = true;
+    bool  use_bsr                          = true;
 };
 
 class PCGSolver : public IterativeSolver
@@ -29,7 +26,6 @@ class PCGSolver : public IterativeSolver
     const auto& config() const { return this->m_config; }
 
   private:
-
     DeviceDenseVector z;   // preconditioned residual
     DeviceDenseVector r;   // residual
     DeviceDenseVector p;   // search direction
