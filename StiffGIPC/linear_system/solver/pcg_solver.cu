@@ -234,6 +234,14 @@ SizeT PCGSolver::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
                                      (int)z.size());
         }
 
+        // Recompute the true residual periodically to avoid drift from recursive updates.
+        // This matches the convergence-check granularity (k % 10 == 0).
+        if(k % 10 == 0)
+        {
+            r.buffer_view().copy_from(b.buffer_view());  // r = b
+            spmv(-1.0, x.as_const(), 1.0, r);            // r = b - A*x
+        }
+
         {
             //Timer timer{"preconditioner"};
             apply_preconditioner(z, r);
