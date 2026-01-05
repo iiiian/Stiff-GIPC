@@ -10576,12 +10576,9 @@ bool GIPC::lineSearch(device_TetraData& TetMesh, double& alpha, const double& cf
     bool   stopped       = false;
     double lastEnergyVal = computeEnergy(TetMesh);
 
-    double c1m         = 0.0;
-    double armijoParam = 0;
-    if(armijoParam > 0.0)
-    {
-        c1m += armijoParam * Energy_Add_Reduction_Algorithm(3, TetMesh);
-    }
+    // Energy_Add_Reduction type 3 compute b dot dx.
+    // Which is grad f dot dx.
+    double c1m = armijo_c1 * Energy_Add_Reduction_Algorithm(3, TetMesh);
 
     CUDA_SAFE_CALL(cudaMemcpy(TetMesh.temp_double3Mem,
                               TetMesh.vertexes,
@@ -10624,13 +10621,22 @@ bool GIPC::lineSearch(device_TetraData& TetMesh, double& alpha, const double& cf
     double LFStepSize      = alpha;
 
     std::cout.precision(18);
-    constexpr int report_line_search_threshold = 8;
+    constexpr int report_line_search_threshold = 30;
+    constexpr double delta_relative_tolerance = 0.1f;
 
-    while((testingE > lastEnergyVal + c1m * alpha) && numOfLineSearch <= report_line_search_threshold)
+    for (int i=0;i<report_line_search_threshold;++i)
     {
-        //std::cout << "[" << numOfLineSearch << "]   testE:    " << testingE
-        //          << "      lastEnergyVal:        " << lastEnergyVal << std::endl;
-        alpha /= 2.0;
+        // Try armijo first.
+        if (testingE <= lastEnergyVal + c1m * alpha){
+            break;
+        }
+
+        // Robust armijo.
+        if (abs(testingE - lastEnergyVal) <= delta_relative_tolerance){
+            printf("Need robust armijo");
+        }
+
+        alpha *= armijo_beta;
         ++numOfLineSearch;
 
         step_forward(TetMesh, alpha, false);
@@ -10638,10 +10644,6 @@ bool GIPC::lineSearch(device_TetraData& TetMesh, double& alpha, const double& cf
         buildCP();
         testingE = computeEnergy(TetMesh);
     }
-    if(numOfLineSearch > report_line_search_threshold)
-        printf("!!!!!!!!!!!!!!!!!!!linesearch number is a bit high, lineSearchCount=%d !!!!!!!!!!!!!!!!!!!!!!\n",
-               numOfLineSearch);
-
 
     if(alpha < LFStepSize)
     {
@@ -10650,9 +10652,9 @@ bool GIPC::lineSearch(device_TetraData& TetMesh, double& alpha, const double& cf
         {
             printf("type 1 intersection happened 1:  %d\n", insectNum);
             insectNum++;
-            alpha /= 2.0;
+            alpha *= armijo_beta;
             numOfIntersect++;
-            alpha = std::min(cfl_alpha, alpha);
+            alpha = std::clamp(alpha, armijo_alpha_min, cfl_alpha);
 
             step_forward(TetMesh, alpha, false);
             buildBVH();

@@ -157,6 +157,9 @@ void apply_settings(GIPC&             ipc,
     ipc.abs_xdelta_tol = s.at("abs_xdelta_tol").get<double>();
     ipc.rel_xdelta_tol = s.at("rel_xdelta_tol").get<double>();
     ipc.relative_dhat  = s.at("IPC_ralative_dHat").get<double>();
+    ipc.armijo_c1       = s.at("armijo_c1").get<double>();
+    ipc.armijo_beta     = s.at("armijo_beta").get<double>();
+    ipc.armijo_alpha_min = s.at("armijo_alpha_min").get<double>();
 
     // As far as I am awared, below lame parameters are not used anywhere.
     // For FEM simulation, the true lame parameter is computed in initFEM().

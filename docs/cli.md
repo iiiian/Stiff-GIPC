@@ -201,6 +201,21 @@ Newton stops when **either** condition is satisfied.
   bboxDiagSize2 = squaredNorm(maxCorner - minCorner);  // Scene bounding box diagonal^2
   dHat = relative_dhat^2 * bboxDiagSize2;              // Actual collision distance threshold
   ```
+
+### `armijo_c1`
+- **Type:** number
+- **Stored in:** `ipc.armijo_c1`
+- **Effect:** Armijo sufficient decrease constant `c1` (typical `1e-4`). Used in line search acceptance test.
+
+### `armijo_beta`
+- **Type:** number
+- **Stored in:** `ipc.armijo_beta`
+- **Effect:** Backtracking shrink factor `beta` in `(0, 1)` (typical `0.5`). Each failed Armijo test reduces `alpha := beta * alpha`.
+
+### `armijo_alpha_min`
+- **Type:** number
+- **Stored in:** `ipc.armijo_alpha_min`
+- **Effect:** Lower bound on `alpha` during Armijo backtracking (typical `1e-12`).
 - **Effect:** Collision activation distance relative to scene size. Collisions activate when `distance^2 < dHat`. Larger = earlier collision response, smoother but more expensive.
 
 ---

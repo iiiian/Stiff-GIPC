@@ -140,6 +140,9 @@ class GIPC
     double pcg_abs_threshold           = 0.0;
     bool   pcg_use_preconditioned_norm = true;
     int    pcg_max_iter                = 0;
+    double armijo_c1                   = 1.0e-4;  // control parameter
+    double armijo_beta                 = 0.5;     // alpha reduction factor.
+    double armijo_alpha_min            = 1.0e-10;
 
     gipc::ABDFEMCountInfo abd_fem_count_info{};
 
