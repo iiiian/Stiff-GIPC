@@ -2,6 +2,7 @@
 #include <gipc/utils/timer.h>
 #include <gipc/statistics.h>
 #include <cuda_tools/cuda_tools.h>
+#include <iostream>
 
 
 __global__ void PCG_vdv_Reduction(double* squeue, const double* a, const double* b, int numbers)
@@ -298,6 +299,7 @@ SizeT PCGSolver::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
         rz = rz_new;
     }
 
+    std::cout << "PCG: iter " << k << std::endl;
     return k;
 }
 
