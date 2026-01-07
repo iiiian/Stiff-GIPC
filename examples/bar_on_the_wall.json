@@ -26,7 +26,8 @@
   },
   "simulation": {
     "frames": 100,
-    "preconditioner_type": 1
+    "preconditioner_type": 1,
+    "write_obj_frames": true
   },
   "objects": [
     {

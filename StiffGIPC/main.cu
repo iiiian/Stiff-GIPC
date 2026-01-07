@@ -305,6 +305,9 @@ int main(int argc, char** argv)
         scene.at("simulation").at("preconditioner_type").get<int>();
     ipc.pcg_data.P_type = preconditioner_type;
 
+    const bool write_obj_frames =
+        scene.at("simulation").at("write_obj_frames").get<bool>();
+
     // This call stores a reference to d_tetMesh.
     ipc.build_gipc_system(d_tetMesh);
 
@@ -570,11 +573,14 @@ int main(int argc, char** argv)
     fs::create_directories(output_dir);
 
     // Write initial (pre-simulation) state as frame 0.
-    CUDA_SAFE_CALL(cudaMemcpy(tetMesh.vertexes.data(),
-                              ipc._vertexes,
-                              ipc.vertexNum * sizeof(double3),
-                              cudaMemcpyDeviceToHost));
-    write_obj(frame_obj_path(output_dir, 0), tetMesh);
+    if(write_obj_frames)
+    {
+        CUDA_SAFE_CALL(cudaMemcpy(tetMesh.vertexes.data(),
+                                  ipc._vertexes,
+                                  ipc.vertexNum * sizeof(double3),
+                                  cudaMemcpyDeviceToHost));
+        write_obj(frame_obj_path(output_dir, 0), tetMesh);
+    }
 
     for(int frame = 0; frame < frames; ++frame)
     {
@@ -588,11 +594,14 @@ int main(int argc, char** argv)
         stats.write_to_file((fs::path(output_dir) / "stats.json").string());
         stats.frame(stats.frame() + 1);
 
-        CUDA_SAFE_CALL(cudaMemcpy(tetMesh.vertexes.data(),
-                                  ipc._vertexes,
-                                  ipc.vertexNum * sizeof(double3),
-                                  cudaMemcpyDeviceToHost));
-        write_obj(frame_obj_path(output_dir, frame + 1), tetMesh);
+        if(write_obj_frames)
+        {
+            CUDA_SAFE_CALL(cudaMemcpy(tetMesh.vertexes.data(),
+                                      ipc._vertexes,
+                                      ipc.vertexNum * sizeof(double3),
+                                      cudaMemcpyDeviceToHost));
+            write_obj(frame_obj_path(output_dir, frame + 1), tetMesh);
+        }
     }
 
     return 0;

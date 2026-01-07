@@ -248,6 +248,12 @@ Newton stops when **either** condition is satisfied.
   - `0` = Diagonal preconditioner (simple, no `.part` files needed)
   - `1` = MAS (Multi-level Additive Schwarz) preconditioner (faster convergence, requires `.part` files)
 
+### `write_obj_frames`
+- **Type:** bool
+- **Effect:** Controls whether `.obj` mesh files are written each frame.
+  - `true`: Write `frame_00000.obj`, `frame_00001.obj`, etc.
+  - `false`: Skip OBJ output (only `stats.json` is written)
+
 ---
 
 ## `objects[]`
