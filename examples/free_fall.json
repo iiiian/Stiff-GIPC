@@ -29,6 +29,11 @@
     "preconditioner_type": 0,
     "write_obj_frames": true
   },
+  "ground": {
+    "enabled": false,
+    "normal": [0.0, 1.0, 0.0],
+    "offset": 0.0
+  },
   "objects": [
     {
       "is_obstacle": true,

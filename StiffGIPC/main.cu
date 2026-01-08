@@ -153,12 +153,12 @@ void apply_settings(GIPC&             ipc,
     ipc.pcg_rel_threshold = s.at("pcg_rel_threshold").get<double>();
     ipc.pcg_abs_threshold = s.at("pcg_abs_threshold").get<double>();
     ipc.pcg_use_preconditioned_norm = s.at("pcg_use_preconditioned_norm").get<bool>();
-    ipc.pcg_max_iter = s.at("pcg_max_iter").get<int>();
-    ipc.abs_xdelta_tol = s.at("abs_xdelta_tol").get<double>();
-    ipc.rel_xdelta_tol = s.at("rel_xdelta_tol").get<double>();
-    ipc.relative_dhat  = s.at("IPC_ralative_dHat").get<double>();
-    ipc.armijo_c1       = s.at("armijo_c1").get<double>();
-    ipc.armijo_beta     = s.at("armijo_beta").get<double>();
+    ipc.pcg_max_iter     = s.at("pcg_max_iter").get<int>();
+    ipc.abs_xdelta_tol   = s.at("abs_xdelta_tol").get<double>();
+    ipc.rel_xdelta_tol   = s.at("rel_xdelta_tol").get<double>();
+    ipc.relative_dhat    = s.at("IPC_ralative_dHat").get<double>();
+    ipc.armijo_c1        = s.at("armijo_c1").get<double>();
+    ipc.armijo_beta      = s.at("armijo_beta").get<double>();
     ipc.armijo_alpha_min = s.at("armijo_alpha_min").get<double>();
 
     // As far as I am awared, below lame parameters are not used anywhere.
@@ -505,7 +505,16 @@ int main(int argc, char** argv)
 
     ipc.MALLOC_DEVICE_MEM();
 
-    // Ground collision is disabled (ipc.useGround = false by default)
+    // Parse ground section
+    const auto& ground = scene.at("ground");
+    ipc.useGround      = ground.at("enabled").get<bool>();
+    if(ipc.useGround)
+    {
+        const auto ground_normal = read_vec3(ground.at("normal"));
+        const auto ground_offset = ground.at("offset").get<double>();
+        CUDA_SAFE_CALL(cudaMemcpy(ipc._groundNormal, &ground_normal, sizeof(double3), cudaMemcpyHostToDevice));
+        CUDA_SAFE_CALL(cudaMemcpy(ipc._groundOffset, &ground_offset, sizeof(double), cudaMemcpyHostToDevice));
+    }
 
     CUDA_SAFE_CALL(cudaMemcpy(
         ipc._faces, tetMesh.surface.data(), ipc.surface_Num * sizeof(uint3), cudaMemcpyHostToDevice));

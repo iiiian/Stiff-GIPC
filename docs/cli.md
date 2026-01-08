@@ -67,6 +67,7 @@ The loader uses `json.at(...)` for all fields below, so every key must be presen
 Top-level:
 - `settings` (object): simulation parameters
 - `simulation` (object): run controls
+- `ground` (object): ground plane collision settings
 - `objects` (array): one or more tetrahedral objects
 
 ---
@@ -96,7 +97,8 @@ Top-level:
 
 ### `gd_friction_rate`
 - **Type:** number
-- **Effect:** **UNUSED** - ground collision is disabled in headless CLI. Value required but has no effect.
+- **Stored in:** `ipc.gd_frictionRate`
+- **Effect:** Friction coefficient for ground collisions. Only used when `ground.enabled == true`.
 
 ### `triangle_mesh_thickness`
 - **Type:** number
@@ -253,6 +255,25 @@ Newton stops when **either** condition is satisfied.
 - **Effect:** Controls whether `.obj` mesh files are written each frame.
   - `true`: Write `frame_00000.obj`, `frame_00001.obj`, etc.
   - `false`: Skip OBJ output (only `stats.json` is written)
+
+---
+
+## `ground`
+
+### `enabled`
+- **Type:** bool
+- **Stored in:** `ipc.useGround`
+- **Effect:** Enable or disable ground plane collision.
+  - `true`: Enables collision detection and response against the ground plane.
+  - `false`: Ground collision is disabled.
+
+### `normal`
+- **Type:** vec3 (array of 3 numbers)
+- **Effect:** The ground plane normal direction. Typically `[0, 1, 0]` for a horizontal floor.
+
+### `offset`
+- **Type:** number
+- **Effect:** The ground plane offset from the origin along the normal direction. For example, with `normal: [0, 1, 0]` and `offset: 0`, the ground is at `y = 0`.
 
 ---
 
