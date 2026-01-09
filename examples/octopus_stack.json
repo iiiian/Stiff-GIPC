@@ -25,7 +25,7 @@
     "armijo_alpha_min": 1e-12
   },
   "simulation": {
-    "frames": 200,
+    "frames": 60,
     "preconditioner_type": 1,
     "write_obj_frames": true
   },
@@ -37,8 +37,8 @@
   "objects": [
     {
       "is_obstacle": false,
-      "mesh_msh": "examples/octopus_sorted.16.msh",
-      "part_file": "examples/octopus_sorted.16.part",
+      "mesh_msh": "examples/octopus_low_sorted.16.msh",
+      "part_file": "examples/octopus_low_sorted.16.part",
       "young_modulus": 50000.0,
       "density": 1000.0,
       "poisson_ratio": 0.45,
@@ -52,30 +52,30 @@
     },
     {
       "is_obstacle": false,
-      "mesh_msh": "examples/octopus_sorted.16.msh",
-      "part_file": "examples/octopus_sorted.16.part",
+      "mesh_msh": "examples/octopus_low_sorted.16.msh",
+      "part_file": "examples/octopus_low_sorted.16.part",
       "young_modulus": 50000.0,
       "density": 1000.0,
       "poisson_ratio": 0.45,
       "transform": {
         "rotation": [140.0, 0.0, 0.0],
         "scale": 1.0,
-        "translation": [0.0, 0.7, 0.0]
+        "translation": [0.0, 0.5, 0.0]
       },
       "initial_velocity": [0.0, 0.0, 0.0],
       "pin_boxes": []
     },
     {
       "is_obstacle": false,
-      "mesh_msh": "examples/octopus_sorted.16.msh",
-      "part_file": "examples/octopus_sorted.16.part",
+      "mesh_msh": "examples/octopus_low_sorted.16.msh",
+      "part_file": "examples/octopus_low_sorted.16.part",
       "young_modulus": 50000.0,
       "density": 1000.0,
       "poisson_ratio": 0.45,
       "transform": {
         "rotation": [140.0, 0.0, 0.0],
         "scale": 1.0,
-        "translation": [0.0, 2.5, 0.0]
+        "translation": [0.0, 0.8, 0.0]
       },
       "initial_velocity": [0.0, 0.0, 0.0],
       "pin_boxes": []
