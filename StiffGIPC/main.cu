@@ -116,18 +116,29 @@ double3 read_vec3(const gipc::Json& j)
     return make_double3(a[0], a[1], a[2]);
 }
 
-Eigen::Matrix4d read_transform(const gipc::Json& j)
+TransformParams read_transform(const gipc::Json& j)
 {
+    const auto r = j.at("rotation").get<std::vector<double>>();
+    if(r.size() != 3)
+    {
+        throw std::runtime_error("Expected transform.rotation vec3");
+    }
+
     const double scale = j.at("scale").get<double>();
-    const auto   t     = j.at("translation").get<std::vector<double>>();
+
+    const auto t = j.at("translation").get<std::vector<double>>();
     if(t.size() != 3)
     {
         throw std::runtime_error("Expected transform.translation vec3");
     }
 
-    Eigen::Matrix4d transform   = Eigen::Matrix4d::Identity();
-    transform.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity() * scale;
-    transform.block<3, 1>(0, 3) = Eigen::Vector3d{t[0], t[1], t[2]};
+    // Convert rotation from degrees to radians
+    constexpr double deg2rad = M_PI / 180.0;
+
+    TransformParams transform;
+    transform.rotation    = Eigen::Vector3d{r[0] * deg2rad, r[1] * deg2rad, r[2] * deg2rad};
+    transform.scale       = scale;
+    transform.translation = Eigen::Vector3d{t[0], t[1], t[2]};
     return transform;
 }
 

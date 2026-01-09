@@ -19,6 +19,7 @@
 #include "gpu_eigen_libs.cuh"
 #include "cstring"
 #include "Eigen/Eigen"
+#include <Eigen/Geometry>
 using namespace std;
 
 class Triangle
@@ -479,12 +480,12 @@ bool tetrahedra_obj::load_parts(const std::string& filename)
 }
 
 
-bool tetrahedra_obj::load_tetrahedraMesh(const std::string&     filename,
-                                         const Eigen::Matrix4d& transform,
-                                         double                 youngth_module,
-                                         double                 density,
-                                         double                 poisson_ratio,
-                                         gipc::BodyType         body_type,
+bool tetrahedra_obj::load_tetrahedraMesh(const std::string&      filename,
+                                         const TransformParams&  transform,
+                                         double                  youngth_module,
+                                         double                  density,
+                                         double                  poisson_ratio,
+                                         gipc::BodyType          body_type,
                                          BodyBoundaryType body_boundary_type)
 {
     begin_load_body(filename, body_type, body_boundary_type);
@@ -513,13 +514,28 @@ bool tetrahedra_obj::load_tetrahedraMesh(const std::string&     filename,
     }
     set_body_tet_num(body_type, elementNumber);
 
+    // Compute bounding box center from mesh vertices (before transform)
+    Eigen::Vector3d bbMin = V.colwise().minCoeff().transpose();
+    Eigen::Vector3d bbMax = V.colwise().maxCoeff().transpose();
+    Eigen::Vector3d center = (bbMin + bbMax) * 0.5;
+
+    // Build rotation matrix (XYZ Euler order: rotate X, then Y, then Z)
+    Eigen::Matrix3d R =
+        Eigen::AngleAxisd(transform.rotation.z(), Eigen::Vector3d::UnitZ()).toRotationMatrix() *
+        Eigen::AngleAxisd(transform.rotation.y(), Eigen::Vector3d::UnitY()).toRotationMatrix() *
+        Eigen::AngleAxisd(transform.rotation.x(), Eigen::Vector3d::UnitX()).toRotationMatrix();
+
     double xmin = 1e32, ymin = 1e32, zmin = 1e32;
     double xmax = -1e32, ymax = -1e32, zmax = -1e32;
 
     for(int i = 0; i < nodeNumber; ++i)
     {
-        Eigen::Vector4d p_local{V(i, 0), V(i, 1), V(i, 2), 1.0};
-        Eigen::Vector4d p_world = transform * p_local;
+        // Transform order: 1) center to origin, 2) rotate, 3) scale, 4) translate
+        Eigen::Vector3d p_local{V(i, 0), V(i, 1), V(i, 2)};
+        Eigen::Vector3d p_centered = p_local - center;
+        Eigen::Vector3d p_rotated  = R * p_centered;
+        Eigen::Vector3d p_scaled   = transform.scale * p_rotated;
+        Eigen::Vector3d p_world    = p_scaled + transform.translation;
 
         const double3 vertex = make_double3(p_world(0), p_world(1), p_world(2));
 

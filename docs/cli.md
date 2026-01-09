@@ -333,21 +333,25 @@ Newton stops when **either** condition is satisfied.
 
 ### `transform`
 
+Transforms are applied in the following order:
+1. Rotate around mesh bounding box center
+2. Scale
+3. Translate
+
+#### `rotation`
+- **Type:** vec3 (array of 3 numbers)
+- **Used in:** `main.cu`, `load_mesh.cpp`
+- **Effect:** Euler angles in degrees (X, Y, Z). Rotation is applied around the mesh's bounding box center, using XYZ rotation order (rotate X, then Y, then Z).
+
 #### `scale`
 - **Type:** number
-- **Used in:** `main.cu:117-131, 309`
-  ```cpp
-  transform.block<3,3>(0,0) = Matrix3d::Identity() * scale;
-  ```
-- **Effect:** Uniform scale applied to mesh vertices during loading.
+- **Used in:** `main.cu`, `load_mesh.cpp`
+- **Effect:** Uniform scale applied to mesh vertices during loading (after rotation).
 
 #### `translation`
 - **Type:** vec3 (array of 3 numbers)
-- **Used in:** `main.cu:117-131, 309`
-  ```cpp
-  transform.block<3,1>(0,3) = Vector3d{t[0], t[1], t[2]};
-  ```
-- **Effect:** World-space translation applied to mesh vertices during loading.
+- **Used in:** `main.cu`, `load_mesh.cpp`
+- **Effect:** World-space translation applied to mesh vertices during loading (after rotation and scale).
 
 ### `initial_velocity`
 - **Type:** vec3 (array of 3 numbers)

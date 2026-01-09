@@ -23,6 +23,13 @@
 
 using namespace std;
 
+struct TransformParams
+{
+    Eigen::Vector3d rotation;     // Euler angles in radians (X, Y, Z)
+    double          scale;
+    Eigen::Vector3d translation;
+};
+
 class mesh_obj
 {
   public:
@@ -138,11 +145,11 @@ class tetrahedra_obj
                              gipc::BodyType body_type = gipc::BodyType::FEM,
                              BodyBoundaryType body_boundary_type = BodyBoundaryType::Free);
 
-    bool load_tetrahedraMesh(const std::string&     filename,
-                             const Eigen::Matrix4d& transform,
-                             double                 youngth_module,
-                             double                 density,
-                             double                 poisson_ratio,
+    bool load_tetrahedraMesh(const std::string&      filename,
+                             const TransformParams&  transform,
+                             double                  youngth_module,
+                             double                  density,
+                             double                  poisson_ratio,
                              gipc::BodyType body_type = gipc::BodyType::FEM,
                              BodyBoundaryType body_boundary_type = BodyBoundaryType::Free);
 
