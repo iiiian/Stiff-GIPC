@@ -76,7 +76,8 @@ int run_sort_dir(const fs::path& input_dir, const fs::path& output_dir)
     std::vector<fs::path> msh_files;
     for(const auto& entry : fs::directory_iterator(input_dir))
     {
-        if(entry.is_regular_file() && entry.path().extension() == ".msh")
+        fs::path ext = entry.path().extension();
+        if(entry.is_regular_file() && (ext == ".msh" || ext == ".mesh"))
         {
             msh_files.push_back(entry.path());
         }
@@ -85,7 +86,7 @@ int run_sort_dir(const fs::path& input_dir, const fs::path& output_dir)
 
     if(msh_files.empty())
     {
-        throw std::runtime_error("No .msh files found in: " + input_dir.string());
+        throw std::runtime_error("No gmsh files found in: " + input_dir.string());
     }
 
     for(const auto& mesh_path : msh_files)

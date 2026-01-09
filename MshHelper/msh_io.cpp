@@ -26,23 +26,6 @@ void load_tet_mesh(const std::string& path, Eigen::MatrixXd& vertices, Eigen::Ma
         throw std::runtime_error("Empty gmsh file (no elements)");
     }
 
-    for(const auto& n : nodes.entity_blocks)
-    {
-        if(n.entity_dim != 3)
-        {
-            throw std::runtime_error("Only 3D vertices are supported, got dim="
-                                     + std::to_string(n.entity_dim));
-        }
-    }
-    for(const auto& e : elements.entity_blocks)
-    {
-        if(e.element_type != 4)
-        {
-            throw std::runtime_error("Only tet meshes are supported, got type="
-                                     + std::to_string(e.element_type));
-        }
-    }
-
     vertices.resize(static_cast<int>(nodes.num_nodes), 3);
     int node_idx = 0;  // re-index node from 0 ... num_nodes-1
     std::vector<int> node_tag_map(nodes.max_node_tag + 1, -1);  // map gmsh tag to idx
@@ -61,13 +44,30 @@ void load_tet_mesh(const std::string& path, Eigen::MatrixXd& vertices, Eigen::Ma
         }
     }
 
-    int tet_idx = 0;
-    tets.resize(static_cast<int>(elements.num_elements), 4);
+    size_t num_tets = 0;
     for(const auto& e : elements.entity_blocks)
     {
+        if(e.element_type == 4)  // tetrahedron
+        {
+            num_tets += e.num_elements_in_block;
+        }
+    }
+    if(num_tets == 0)
+    {
+        throw std::runtime_error("No tetrahedra found in mesh file");
+    }
+
+    int tet_idx = 0;
+    tets.resize(static_cast<int>(num_tets), 4);
+    for(const auto& e : elements.entity_blocks)
+    {
+        if(e.element_type != 4)  // skip non-tet elements (e.g., surface triangles)
+        {
+            continue;
+        }
         for(int i = 0; i < static_cast<int>(e.num_elements_in_block); ++i)
         {
-            assert(tet_idx < static_cast<int>(elements.num_elements));
+            assert(tet_idx < static_cast<int>(num_tets));
 
             // element.data layout:
             // | element tag | node0 tag | node1 tag | node2 tag | node3 tag |
