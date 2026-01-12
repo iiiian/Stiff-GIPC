@@ -68,6 +68,7 @@ Top-level:
 - `settings` (object): simulation parameters
 - `simulation` (object): run controls
 - `ground` (object): ground plane collision settings
+- `animation` (array): animated soft constraints (target motion)
 - `objects` (array): one or more tetrahedral objects
 
 ---
@@ -125,6 +126,12 @@ Top-level:
 - **Stored in:** `ipc.softMotionRate`
 - **Used in:** `GIPC.cu:8671, 8819, 10363`
 - **Effect:** Stiffness for soft constraint targets (animation targets). Higher = vertices track targets more rigidly.
+
+### `gravity`
+- **Type:** vec3 (array of 3 numbers)
+- **Stored in:** `ipc.gravity`
+- **Used in:** `GIPC.cu` -> `GIPC::computeXTilta()` (adds `gravity * dt^2` for free vertices)
+- **Effect:** Global gravity acceleration vector. Use `[0, 0, 0]` to disable gravity.
 
 ### `collision_detection_buff_scale`
 - **Type:** number
@@ -274,6 +281,32 @@ Newton stops when **either** condition is satisfied.
 ### `offset`
 - **Type:** number
 - **Effect:** The ground plane offset from the origin along the normal direction. For example, with `normal: [0, 1, 0]` and `offset: 0`, the ground is at `y = 0`.
+
+---
+
+## `animation[]`
+
+`animation` is a list of animated soft constraints. To disable animation, set `animation: []`.
+
+### `animation[].object`
+- **Type:** int
+- **Effect:** Index into `objects[]` to select which object's vertices are tested against `boxes`.
+
+### `animation[].boxes[]`
+- **Type:** array of `{ "min": vec3, "max": vec3 }`
+- **Effect:** Vertex selection AABBs in world coordinates (same style as `objects[].pin_boxes`).
+
+### `animation[].rot_origin`
+- **Type:** vec3
+- **Effect:** Rotation origin in world coordinates.
+
+### `animation[].rot_axis`
+- **Type:** vec3
+- **Effect:** Rotation axis in world coordinates (will be normalized).
+
+### `animation[].rot_velocity`
+- **Type:** number
+- **Effect:** Rotation rate in radians per second. Each frame uses `theta = rot_velocity * ipc_time_step`.
 
 ---
 

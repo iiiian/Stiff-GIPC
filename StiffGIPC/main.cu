@@ -20,6 +20,7 @@
 #include <cuda_runtime.h>
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -136,10 +137,117 @@ TransformParams read_transform(const gipc::Json& j)
     constexpr double deg2rad = M_PI / 180.0;
 
     TransformParams transform;
-    transform.rotation    = Eigen::Vector3d{r[0] * deg2rad, r[1] * deg2rad, r[2] * deg2rad};
+    transform.rotation = Eigen::Vector3d{r[0] * deg2rad, r[1] * deg2rad, r[2] * deg2rad};
     transform.scale       = scale;
     transform.translation = Eigen::Vector3d{t[0], t[1], t[2]};
     return transform;
+}
+
+struct BoxSelection
+{
+    double3 min;
+    double3 max;
+};
+
+struct AnimationConstraint
+{
+    int                       object = -1;  // objects[object]
+    std::vector<BoxSelection> boxes;
+    double3                   rot_origin   = {0.0, 0.0, 0.0};
+    double3                   rot_axis     = {1.0, 0.0, 0.0};
+    double                    rot_velocity = 0.0;  // radians/sec
+};
+
+struct SoftTargetRotation
+{
+    double3 origin;
+    double3 axis_unit;
+    double  angular_velocity;  // radians/sec
+};
+
+double3 vec3_sub(const double3& a, const double3& b)
+{
+    return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+double3 vec3_add(const double3& a, const double3& b)
+{
+    return make_double3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+
+double3 vec3_scale(const double3& a, double s)
+{
+    return make_double3(a.x * s, a.y * s, a.z * s);
+}
+
+double vec3_dot(const double3& a, const double3& b)
+{
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+double3 vec3_cross(const double3& a, const double3& b)
+{
+    return make_double3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+}
+
+double3 vec3_normalize(const double3& a)
+{
+    const double n2 = vec3_dot(a, a);
+    if(n2 <= 0.0)
+    {
+        throw std::runtime_error("Cannot normalize zero-length axis");
+    }
+    return vec3_scale(a, 1.0 / std::sqrt(n2));
+}
+
+double3 rotate_axis_angle(const double3& p_world,
+                          const double3& origin_world,
+                          const double3& axis_unit_world,
+                          double         theta)
+{
+    // Rodrigues' rotation formula around axis through origin_world.
+    const double3 p = vec3_sub(p_world, origin_world);
+    const double  c = std::cos(theta);
+    const double  s = std::sin(theta);
+
+    const double3 term0 = vec3_scale(p, c);
+    const double3 term1 = vec3_scale(vec3_cross(axis_unit_world, p), s);
+    const double3 term2 =
+        vec3_scale(axis_unit_world, vec3_dot(axis_unit_world, p) * (1.0 - c));
+
+    return vec3_add(origin_world, vec3_add(vec3_add(term0, term1), term2));
+}
+
+bool point_in_box(const double3& p, const BoxSelection& box)
+{
+    return p.x >= box.min.x && p.x <= box.max.x && p.y >= box.min.y
+           && p.y <= box.max.y && p.z >= box.min.z && p.z <= box.max.z;
+}
+
+std::vector<AnimationConstraint> read_animation(const gipc::Json& j)
+{
+    std::vector<AnimationConstraint> cts;
+    for(const auto& cj : j)
+    {
+        AnimationConstraint c;
+        c.object = cj.at("object").get<int>();
+
+        for(const auto& bj : cj.at("boxes"))
+        {
+            BoxSelection box;
+            box.min = read_vec3(bj.at("min"));
+            box.max = read_vec3(bj.at("max"));
+            c.boxes.push_back(std::move(box));
+        }
+
+        c.rot_origin   = read_vec3(cj.at("rot_origin"));
+        c.rot_axis     = vec3_normalize(read_vec3(cj.at("rot_axis")));
+        c.rot_velocity = cj.at("rot_velocity").get<double>();
+
+        cts.push_back(std::move(c));
+    }
+
+    return cts;
 }
 
 void apply_settings(GIPC&             ipc,
@@ -157,6 +265,7 @@ void apply_settings(GIPC&             ipc,
     ipc.clothDensity      = s.at("triangle_mesh_density").get<double>();
     ipc.strainRate        = s.at("strain_rate").get<double>();
     ipc.softMotionRate    = s.at("motion_stiffness").get<double>();
+    ipc.gravity           = read_vec3(s.at("gravity"));
 
     collision_detection_buff_scale =
         s.at("collision_detection_buff_scale").get<double>();
@@ -323,6 +432,10 @@ int main(int argc, char** argv)
     // This call stores a reference to d_tetMesh.
     ipc.build_gipc_system(d_tetMesh);
 
+    const auto animation = read_animation(scene.at("animation"));
+    std::vector<std::pair<int, int>> object_vertex_ranges;
+    object_vertex_ranges.reserve(scene.at("objects").size());
+
     double3 non_obstacle_min = make_double3(std::numeric_limits<double>::infinity(),
                                             std::numeric_limits<double>::infinity(),
                                             std::numeric_limits<double>::infinity());
@@ -347,7 +460,7 @@ int main(int argc, char** argv)
         // This is for ABD system only and has no effect on FEM object.
         const BodyBoundaryType boundary = BodyBoundaryType::Free;
 
-        const int v_begin = static_cast<int>(tetMesh.vertexes.size());
+        const int v_begin = tetMesh.vertexes.size();
 
         tetMesh.load_tetrahedraMesh(
             mesh_path, transform, young_modulus, density, poisson_ratio, gipc::BodyType::FEM, boundary);
@@ -374,7 +487,8 @@ int main(int argc, char** argv)
             }
         }
 
-        const int v_end = static_cast<int>(tetMesh.vertexes.size());
+        const int v_end = tetMesh.vertexes.size();
+        object_vertex_ranges.emplace_back(v_begin, v_end);
 
         if(is_obstacle)
         {
@@ -408,6 +522,54 @@ int main(int argc, char** argv)
             }
         }
     }
+
+    // Build animated soft constraints using box selection.
+    std::vector<SoftTargetRotation> soft_target_rotations;  // rotation animation for selected vertices.
+    std::vector<double3> host_target_vertices;  // index of selected vertices.
+    tetMesh.targetIndex.clear();
+    tetMesh.softNum = 0;
+    if(!animation.empty())
+    {
+        std::vector<char> has_soft(tetMesh.vertexes.size(), 0);
+
+        for(const auto& c : animation)
+        {
+            if(c.object < 0 || c.object >= object_vertex_ranges.size())
+            {
+                throw std::runtime_error("animation.constraints[].object out of range");
+            }
+
+            const auto [v_begin, v_end] = object_vertex_ranges[c.object];
+            assert(v_end >= v_begin);
+
+            std::vector<char> selected(v_end - v_begin, 0);
+            for(const auto& box : c.boxes)
+            {
+                for(int vi = v_begin; vi < v_end; ++vi)
+                {
+                    if(!point_in_box(tetMesh.vertexes[vi], box))
+                    {
+                        continue;
+                    }
+
+                    if(has_soft[vi])
+                    {
+                        throw std::runtime_error("A vertex is selected by multiple animation constraints");
+                    }
+                    has_soft[vi] = 1;
+                    tetMesh.targetIndex.push_back(vi);
+                    SoftTargetRotation tr;
+                    tr.origin           = c.rot_origin;
+                    tr.axis_unit        = c.rot_axis;
+                    tr.angular_velocity = c.rot_velocity;
+                    soft_target_rotations.push_back(std::move(tr));
+                    host_target_vertices.push_back(tetMesh.vertexes[vi]);
+                }
+            }
+        }
+    }
+
+    tetMesh.softNum = tetMesh.targetIndex.size();
 
     if(non_obstacle_min.x != std::numeric_limits<double>::infinity())
     {
@@ -479,6 +641,18 @@ int main(int argc, char** argv)
                               cudaMemcpyHostToDevice));
 
     // TriMesh setup is removed here.
+
+    if(tetMesh.softNum > 0)
+    {
+        CUDA_SAFE_CALL(cudaMemcpy(d_tetMesh.targetIndex,
+                                  tetMesh.targetIndex.data(),
+                                  tetMesh.softNum * sizeof(uint32_t),
+                                  cudaMemcpyHostToDevice));
+        CUDA_SAFE_CALL(cudaMemcpy(d_tetMesh.targetVert,
+                                  host_target_vertices.data(),
+                                  tetMesh.softNum * sizeof(double3),
+                                  cudaMemcpyHostToDevice));
+    }
 
     CUDA_SAFE_CALL(cudaMemcpy(d_tetMesh.body_id_to_boundary_type,
                               tetMesh.body_id_to_is_fixed.data(),
@@ -605,6 +779,32 @@ int main(int argc, char** argv)
 
     for(int frame = 0; frame < frames; ++frame)
     {
+        // apply rotation animation to selected vertices.
+        if(ipc.softNum > 0)
+        {
+            CUDA_SAFE_CALL(cudaMemcpy(tetMesh.vertexes.data(),
+                                      ipc._vertexes,
+                                      ipc.vertexNum * sizeof(double3),
+                                      cudaMemcpyDeviceToHost));
+
+            for(size_t i = 0; i < ipc.softNum; ++i)
+            {
+                const uint32_t v_id = tetMesh.targetIndex[i];
+                const auto&    r    = soft_target_rotations[i];
+
+                host_target_vertices[i] =
+                    rotate_axis_angle(tetMesh.vertexes[v_id],
+                                      r.origin,
+                                      r.axis_unit,
+                                      r.angular_velocity * ipc.IPC_dt);
+            }
+
+            CUDA_SAFE_CALL(cudaMemcpy(d_tetMesh.targetVert,
+                                      host_target_vertices.data(),
+                                      ipc.softNum * sizeof(double3),
+                                      cudaMemcpyHostToDevice));
+        }
+
         ipc.IPC_Solver(d_tetMesh);
 
         auto& stats = gipc::Statistics::instance();

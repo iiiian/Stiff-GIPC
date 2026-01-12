@@ -8017,6 +8017,7 @@ __global__ void _computeXTilta(int*     _btype,
                                double3* _velocities,
                                double3* _o_vertexes,
                                double3* _xTilta,
+                               double3  gravity,
                                double   ipc_dt,
                                double   rate,
                                int      numbers)
@@ -8028,8 +8029,7 @@ __global__ void _computeXTilta(int*     _btype,
     double3 gravityDtSq = make_double3(0, 0, 0);  //__GEIGEN__::__s_vec_multiply(make_double3(0, -9.8, 0), ipc_dt * ipc_dt);//Vector3d(0, gravity, 0) * IPC_dt * IPC_dt;
     if(_btype[idx] == 0)
     {
-        gravityDtSq =
-            __GEIGEN__::__s_vec_multiply(make_double3(0, -9.8, 0), ipc_dt * ipc_dt);
+        gravityDtSq = __GEIGEN__::__s_vec_multiply(gravity, ipc_dt * ipc_dt);
     }
     _xTilta[idx] = __GEIGEN__::__add(
         _o_vertexes[idx],
@@ -8549,7 +8549,7 @@ void GIPC::init(double m_meanMass, double m_meanVolumn, double3 minConer, double
         abd_fem_count_info.abd_body_num * 4 + abd_fem_count_info.fem_point_num;
 
 
-    uint32_t Minimum = 100000;
+    uint32_t Minimum = 200000;
     int minCollisionBuffer4 = std::max(2 * (surf_vertexNum + edge_Num), Minimum);
     int minCollisionBuffer3 = std::max(2 * (surf_vertexNum + edge_Num), Minimum);
     int minCollisionBuffer2 = std::max(2 * (surf_vertexNum + edge_Num), Minimum);
@@ -8568,11 +8568,12 @@ void GIPC::init(double m_meanMass, double m_meanVolumn, double3 minConer, double
 
     gipc_global_triplet.resize(global_matrix_block3_size,
                                global_matrix_block3_size,
-                               total_max_global_triplet_num);
+                               total_max_global_triplet_num * 2);
 
     gipc_global_triplet.global_external_max_capcity =
         total_internal_triplet_num + total_max_collision_triplet_num;
-    gipc_global_triplet.resize_collision_hash_size(gipc_global_triplet.global_external_max_capcity);
+    gipc_global_triplet.resize_collision_hash_size(
+        gipc_global_triplet.global_external_max_capcity * 2);
 
 
     m_global_linear_system->gipc_global_triplet = &(gipc_global_triplet);
@@ -10915,7 +10916,14 @@ void GIPC::computeXTilta(device_TetraData& TetMesh, const double& rate)
     const unsigned int threadNum = default_threads;
     int                blockNum  = (numbers + threadNum - 1) / threadNum;  //
     _computeXTilta<<<blockNum, threadNum>>>(
-        TetMesh.BoundaryType, TetMesh.velocities, TetMesh.o_vertexes, TetMesh.xTilta, IPC_dt, rate, numbers);
+        TetMesh.BoundaryType,
+        TetMesh.velocities,
+        TetMesh.o_vertexes,
+        TetMesh.xTilta,
+        gravity,
+        IPC_dt,
+        rate,
+        numbers);
 
     m_abd_system->cal_q_tilde(*m_abd_sim_data);
 }

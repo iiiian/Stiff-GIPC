@@ -81,6 +81,7 @@ class GIPC
     double   Step          = 0.0;
     double   meanMass      = 0.0;
     double   meanVolumn    = 0.0;
+    double3  gravity       = {0.0, -9.8, 0.0};
     double3* _groundNormal = nullptr;
     double*  _groundOffset = nullptr;
 
