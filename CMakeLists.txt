@@ -12,7 +12,7 @@ if(UNIX)
     set(CMAKE_CXX_FLAGS "-O3")
 endif()
 
-project(StiffGIPC LANGUAGES CXX CUDA)
+project(StiffGIPC LANGUAGES C CXX CUDA)
 
 # generate compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -47,6 +47,10 @@ list(FILTER GIPC_SOURCE EXCLUDE REGEX ".*/MshIO/.*")
 list(FILTER GIPC_HANDER EXCLUDE REGEX ".*/MshIO/.*")
 target_sources(gipc PRIVATE ${GIPC_SOURCE} ${GIPC_HANDER})
 
+# mmio (Matrix Market I/O, ANSI C)
+add_library(mmio STATIC "StiffGIPC/mmio/mmio.c")
+target_include_directories(mmio PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/StiffGIPC/mmio")
+
 # add assets and output directory, that we can easily access them in the code
 target_compile_definitions(gipc PRIVATE GIPC_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Assets/")
 target_compile_definitions(gipc PRIVATE GIPC_OUTPUT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Output/")
@@ -72,6 +76,7 @@ target_link_libraries(gipc PRIVATE metis_partition CUDA::cudart)
 target_link_libraries(gipc PRIVATE Eigen3::Eigen TBB::tbb)
 target_link_libraries(gipc PRIVATE nlohmann_json::nlohmann_json argparse::argparse)
 target_link_libraries(gipc PRIVATE msh_helper)
+target_link_libraries(gipc PRIVATE mmio)
 
 target_compile_features(gipc PRIVATE cxx_std_17)
 

@@ -5,6 +5,7 @@
 
 #include <GIPC.cuh>
 #include <argparse/argparse.hpp>
+#include <gipc/gipc.h>
 #include <gipc/utils/json.h>
 #include <gipc/utils/timer.h>
 #include <gipc/statistics.h>
@@ -429,6 +430,9 @@ int main(int argc, char** argv)
     const bool write_obj_frames =
         scene.at("simulation").at("write_obj_frames").get<bool>();
 
+    const auto export_linear_system_frames =
+        scene.at("simulation").at("export_linear_system_frames").get<std::vector<int>>();
+
     // This call stores a reference to d_tetMesh.
     ipc.build_gipc_system(d_tetMesh);
 
@@ -779,6 +783,19 @@ int main(int argc, char** argv)
 
     for(int frame = 0; frame < frames; ++frame)
     {
+        if(ipc.m_global_linear_system)
+        {
+            ipc.m_global_linear_system->clear_matrix_market_export_request();
+            if(std::find(export_linear_system_frames.begin(),
+                         export_linear_system_frames.end(),
+                         frame)
+               != export_linear_system_frames.end())
+            {
+                ipc.m_global_linear_system->request_matrix_market_export(frame,
+                                                                         output_dir);
+            }
+        }
+
         // apply rotation animation to selected vertices.
         if(ipc.softNum > 0)
         {

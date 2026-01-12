@@ -10,7 +10,11 @@
     "triangle_mesh_density": 200.0,
     "strain_rate": 100.0,
     "motion_stiffness": 1.0,
-    "gravity": [0.0, -9.8, 0.0],
+    "gravity": [
+      0.0,
+      -9.8,
+      0.0
+    ],
     "collision_detection_buff_scale": 3.0,
     "motion_rate": 1.0,
     "ipc_time_step": 0.1,
@@ -28,11 +32,16 @@
   "simulation": {
     "frames": 100,
     "preconditioner_type": 1,
-    "write_obj_frames": true
+    "write_obj_frames": true,
+    "export_linear_system_frames": []
   },
   "ground": {
     "enabled": false,
-    "normal": [0.0, 1.0, 0.0],
+    "normal": [
+      0.0,
+      1.0,
+      0.0
+    ],
     "offset": 0.0
   },
   "animation": [],
@@ -45,12 +54,37 @@
       "density": 1000.0,
       "poisson_ratio": 0.2,
       "transform": {
-        "rotation": [0.0, 0.0, 0.0],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "scale": 1.0,
-        "translation": [0.0, 0.0, 0.0]
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
       },
-      "initial_velocity": [0.0, 0.0, 0.0],
-      "pin_boxes": [{"min": [0.0, -100.0, -100.0], "max": [0.0, 100.0, 100.0]}]
+      "initial_velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pin_boxes": [
+        {
+          "min": [
+            0.0,
+            -100.0,
+            -100.0
+          ],
+          "max": [
+            0.0,
+            100.0,
+            100.0
+          ]
+        }
+      ]
     }
   ]
 }

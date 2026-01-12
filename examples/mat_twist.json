@@ -10,7 +10,11 @@
     "triangle_mesh_density": 200.0,
     "strain_rate": 100.0,
     "motion_stiffness": 1.0,
-    "gravity": [0.0, 0.0, 0.0],
+    "gravity": [
+      0.0,
+      0.0,
+      0.0
+    ],
     "collision_detection_buff_scale": 3.0,
     "motion_rate": 1.0,
     "ipc_time_step": 0.01,
@@ -26,13 +30,18 @@
     "armijo_alpha_min": 1e-12
   },
   "simulation": {
-    "frames": 500,
+    "frames": 1500,
     "preconditioner_type": 1,
-    "write_obj_frames": true
+    "write_obj_frames": true,
+    "export_linear_system_frames": []
   },
   "ground": {
     "enabled": false,
-    "normal": [0.0, 1.0, 0.0],
+    "normal": [
+      0.0,
+      1.0,
+      0.0
+    ],
     "offset": 0.0
   },
   "animation": [
@@ -40,41 +49,85 @@
       "object": 0,
       "boxes": [
         {
-          "min": [-1000000000.0, -1000000000.0, -1000000000.0],
-          "max": [-0.4999, 1000000000.0, 1000000000.0]
+          "min": [
+            -1000000000.0,
+            -1000000000.0,
+            -1000000000.0
+          ],
+          "max": [
+            -0.4999,
+            1000000000.0,
+            1000000000.0
+          ]
         }
       ],
-      "rot_origin": [0.0, 0.0, 0.0],
-      "rot_axis": [1.0, 0.0, 0.0],
+      "rot_origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rot_axis": [
+        1.0,
+        0.0,
+        0.0
+      ],
       "rot_velocity": 0.6283185307179586
     },
     {
       "object": 0,
       "boxes": [
         {
-          "min": [0.4999, -1000000000.0, -1000000000.0],
-          "max": [1000000000.0, 1000000000.0, 1000000000.0]
+          "min": [
+            0.4999,
+            -1000000000.0,
+            -1000000000.0
+          ],
+          "max": [
+            1000000000.0,
+            1000000000.0,
+            1000000000.0
+          ]
         }
       ],
-      "rot_origin": [0.0, 0.0, 0.0],
-      "rot_axis": [1.0, 0.0, 0.0],
+      "rot_origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rot_axis": [
+        1.0,
+        0.0,
+        0.0
+      ],
       "rot_velocity": -0.6283185307179586
     }
   ],
   "objects": [
     {
       "is_obstacle": false,
-      "mesh_msh": "Assets/sorted_mesh/high_mat_sorted.16.msh",
-      "part_file": "Assets/sorted_mesh/high_mat_sorted.16.part",
+      "mesh_msh": "examples/high_mat_sorted.16.msh",
+      "part_file": "examples/high_mat_sorted.16.part",
       "young_modulus": 10000.0,
       "density": 1000.0,
       "poisson_ratio": 0.48,
       "transform": {
-        "rotation": [0.0, 0.0, 0.0],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "scale": 1.0,
-        "translation": [0.0, 0.0, 0.0]
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
       },
-      "initial_velocity": [0.0, 0.0, 0.0],
+      "initial_velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
       "pin_boxes": []
     }
   ]

@@ -198,6 +198,17 @@ Top-level:
 ### `rel_xdelta_tol`
 - **Type:** number
 - **Stored in:** `ipc.rel_xdelta_tol`
+
+---
+
+## `simulation`
+
+### `export_linear_system_frames`
+- **Type:** array of int
+- **Effect:** For each listed solver frame index, export the first Newton iteration’s linear system `A x = b` (the one passed to PCG) in MatrixMarket format.
+- **Output:** written under `<output_dir>/linear_system/` as:
+  - `frame_XXXXX_A.mtx` (coordinate, real, general; full matrix)
+  - `frame_XXXXX_b.mtx` (array, real, general; `M x 1`)
 - **Effect:** Relative Newton termination threshold based on `||dx||_inf`: stop when `||dx||_inf < rel_xdelta_tol * ||dx0||_inf`, where `dx0` is the Newton direction from the first iteration.
 
 Newton stops when **either** condition is satisfied.

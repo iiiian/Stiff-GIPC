@@ -8,6 +8,7 @@
 #include <muda/ext/linear_system.h>
 #include <gipc/utils/json.h>
 
+#include <string>
 
 namespace gipc
 {
@@ -26,6 +27,9 @@ class GlobalLinearSystem
     ~GlobalLinearSystem();
 
     static constexpr int BlockSize = 3;
+
+    void clear_matrix_market_export_request();
+    void request_matrix_market_export(int frame, std::string output_dir);
 
     template <typename T, typename... Args>
     T& create(Args&&... args)
@@ -86,12 +90,22 @@ class GlobalLinearSystem
     Converter                      m_converter;
     muda::DeviceDenseVector<Float> fake_y;
 
+    struct MatrixMarketExportRequest
+    {
+        bool        pending = false;
+        int         frame   = -1;
+        std::string output_dir;
+    };
+
+    MatrixMarketExportRequest m_mm_export;
+
 
     bool build_linear_system();
     void distribute_solution();
     void apply_preconditioner(muda::DenseVectorView<Float>  z,
                               muda::CDenseVectorView<Float> r);
 
+    void export_matrix_market_files(int frame, const std::string& output_dir);
     void convert_new();
 
     void spmv(Float a, muda::CDenseVectorView<Float> x, Float b, muda::DenseVectorView<Float> y);
