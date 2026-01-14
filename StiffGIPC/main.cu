@@ -22,6 +22,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -29,9 +31,16 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace fs = std::filesystem;
+
+extern "C"
+{
+#include <mmio.h>
+}
 
 // MAS preconditioner setup code copied verbatimly from the original gl_main.cu.
 // TODO: understand how this works.
@@ -373,12 +382,278 @@ fs::path frame_obj_path(const fs::path& dir, int frame)
     return dir / ss.str();
 }
 
+namespace
+{
+struct MmCoordinateMatrixReal
+{
+    int               M         = 0;
+    int               N         = 0;
+    int               nz        = 0;
+    bool              symmetric = false;
+    std::vector<int>  I;  // 0-based
+    std::vector<int>  J;  // 0-based
+    std::vector<double> V;
+};
+
+MmCoordinateMatrixReal read_mm_coordinate_real(const fs::path& path)
+{
+    FILE* f = std::fopen(path.string().c_str(), "r");
+    if(!f)
+    {
+        throw std::runtime_error("Failed to open MatrixMarket file: " + path.string());
+    }
+
+    MM_typecode matcode;
+    if(mm_read_banner(f, &matcode) != 0)
+    {
+        std::fclose(f);
+        throw std::runtime_error("Failed to read MatrixMarket banner: " + path.string());
+    }
+
+    if(!(mm_is_matrix(matcode) && mm_is_coordinate(matcode) && mm_is_real(matcode)))
+    {
+        std::string s = mm_typecode_to_str(matcode);
+        std::fclose(f);
+        throw std::runtime_error("Unsupported MatrixMarket type for A (need coordinate real matrix), got: " + s);
+    }
+
+    int M = 0, N = 0, nz = 0;
+    if(mm_read_mtx_crd_size(f, &M, &N, &nz) != 0)
+    {
+        std::fclose(f);
+        throw std::runtime_error("Failed to read MatrixMarket coordinate size: " + path.string());
+    }
+
+    MmCoordinateMatrixReal A;
+    A.M         = M;
+    A.N         = N;
+    A.nz        = nz;
+    A.symmetric = mm_is_symmetric(matcode) != 0;
+    A.I.resize(nz);
+    A.J.resize(nz);
+    A.V.resize(nz);
+
+    if(mm_read_mtx_crd_data(f, M, N, nz, A.I.data(), A.J.data(), A.V.data(), matcode) != 0)
+    {
+        std::fclose(f);
+        throw std::runtime_error("Failed to read MatrixMarket coordinate entries: " + path.string());
+    }
+    std::fclose(f);
+
+    // Convert to 0-based indices.
+    for(int k = 0; k < nz; ++k)
+    {
+        A.I[k] -= 1;
+        A.J[k] -= 1;
+    }
+
+    return A;
+}
+
+std::vector<gipc::Float> read_mm_array_vector_mx1(const fs::path& path)
+{
+    FILE* f = std::fopen(path.string().c_str(), "r");
+    if(!f)
+    {
+        throw std::runtime_error("Failed to open MatrixMarket file: " + path.string());
+    }
+
+    MM_typecode matcode;
+    if(mm_read_banner(f, &matcode) != 0)
+    {
+        std::fclose(f);
+        throw std::runtime_error("Failed to read MatrixMarket banner: " + path.string());
+    }
+
+    if(!(mm_is_matrix(matcode) && mm_is_array(matcode) && mm_is_real(matcode)))
+    {
+        std::string s = mm_typecode_to_str(matcode);
+        std::fclose(f);
+        throw std::runtime_error("Unsupported MatrixMarket type for b (need array real matrix), got: " + s);
+    }
+
+    int M = 0, N = 0;
+    if(mm_read_mtx_array_size(f, &M, &N) != 0)
+    {
+        std::fclose(f);
+        throw std::runtime_error("Failed to read MatrixMarket array size: " + path.string());
+    }
+
+    if(N != 1)
+    {
+        std::fclose(f);
+        throw std::runtime_error("b must be MatrixMarket array of shape (M x 1): " + path.string());
+    }
+
+    std::vector<gipc::Float> b(M);
+    for(int i = 0; i < M; ++i)
+    {
+        double v = 0.0;
+        if(std::fscanf(f, "%lg", &v) != 1)
+        {
+            std::fclose(f);
+            throw std::runtime_error("Failed to read b entry " + std::to_string(i) + " from: " + path.string());
+        }
+        b[i] = static_cast<gipc::Float>(v);
+    }
+
+    std::fclose(f);
+    return b;
+}
+
+struct BlockTriplets
+{
+    int                        block_rows = 0;
+    int                        block_cols = 0;
+    std::vector<int>           br;
+    std::vector<int>           bc;
+    std::vector<Eigen::Matrix3d> bv;
+};
+
+static uint64_t pack_block_key(uint32_t r, uint32_t c)
+{
+    return (uint64_t{r} << 32) | uint64_t{c};
+}
+
+static std::pair<uint32_t, uint32_t> unpack_block_key(uint64_t key)
+{
+    return {static_cast<uint32_t>(key >> 32), static_cast<uint32_t>(key & 0xffffffffu)};
+}
+
+BlockTriplets to_upper_triangle_block_triplets(const MmCoordinateMatrixReal& A)
+{
+    if(A.M != A.N)
+    {
+        throw std::runtime_error("A must be square");
+    }
+    if(A.M % 3 != 0)
+    {
+        throw std::runtime_error("A row count must be divisible by 3 (block size)");
+    }
+
+    const int block_n = A.M / 3;
+
+    std::unordered_map<uint64_t, Eigen::Matrix3d> blocks;
+    blocks.reserve(static_cast<size_t>(A.nz));
+
+    std::vector<char> diag_present(block_n, 0);
+
+    for(int k = 0; k < A.nz; ++k)
+    {
+        int r = A.I[k];
+        int c = A.J[k];
+
+        if(r < 0 || c < 0 || r >= A.M || c >= A.N)
+        {
+            throw std::runtime_error("A contains out-of-range indices");
+        }
+
+        int bi = r / 3;
+        int bj = c / 3;
+        int li = r % 3;
+        int lj = c % 3;
+
+        // Canonicalize to upper triangle at the *block* level.
+        // SpMV expects full 3x3 blocks for (bi <= bj), and handles the symmetric transpose for off-diagonals.
+        if(bi > bj)
+        {
+            if(A.symmetric)
+            {
+                std::swap(bi, bj);
+                std::swap(li, lj);  // transpose within the block
+            }
+            else
+            {
+                continue;  // drop lower-triangle blocks to avoid double counting
+            }
+        }
+
+        auto key = pack_block_key(static_cast<uint32_t>(bi), static_cast<uint32_t>(bj));
+        auto [it, inserted] = blocks.try_emplace(key, Eigen::Matrix3d::Zero());
+        it->second(li, lj) += A.V[k];
+        if(A.symmetric && bi == bj && li != lj)
+        {
+            // Symmetric MatrixMarket files typically store only one triangle of the scalar matrix.
+            // Ensure diagonal 3x3 blocks are fully populated.
+            it->second(lj, li) += A.V[k];
+        }
+        if(bi == bj)
+            diag_present[bi] = 1;
+    }
+
+    for(int i = 0; i < block_n; ++i)
+    {
+        if(!diag_present[i])
+        {
+            throw std::runtime_error("A is missing diagonal 3x3 block at block index " + std::to_string(i));
+        }
+    }
+
+    std::vector<uint64_t> keys;
+    keys.reserve(blocks.size());
+    for(const auto& kv : blocks)
+    {
+        keys.push_back(kv.first);
+    }
+    std::sort(keys.begin(), keys.end(), [](uint64_t a, uint64_t b) {
+        auto [ar, ac] = unpack_block_key(a);
+        auto [br, bc] = unpack_block_key(b);
+        return (ar < br) || (ar == br && ac < bc);
+    });
+
+    BlockTriplets out;
+    out.block_rows = block_n;
+    out.block_cols = block_n;
+    out.br.reserve(keys.size());
+    out.bc.reserve(keys.size());
+    out.bv.reserve(keys.size());
+    for(uint64_t key : keys)
+    {
+        auto [r, c] = unpack_block_key(key);
+        out.br.push_back(static_cast<int>(r));
+        out.bc.push_back(static_cast<int>(c));
+        out.bv.push_back(blocks.at(key));
+    }
+    return out;
+}
+
+void upload_triplets_to_device(GIPCTripletMatrix& dst, const BlockTriplets& src)
+{
+    if(dst.block_rows() != src.block_rows || dst.block_cols() != src.block_cols)
+    {
+        throw std::runtime_error("Loaded A block dimensions do not match configured system size");
+    }
+
+    const size_t nnz = src.br.size();
+    dst.resize_triplets(nnz);
+    if(nnz > 0)
+    {
+        CUDA_SAFE_CALL(cudaMemcpy(dst.block_row_indices(),
+                                  src.br.data(),
+                                  sizeof(int) * nnz,
+                                  cudaMemcpyHostToDevice));
+        CUDA_SAFE_CALL(cudaMemcpy(dst.block_col_indices(),
+                                  src.bc.data(),
+                                  sizeof(int) * nnz,
+                                  cudaMemcpyHostToDevice));
+        CUDA_SAFE_CALL(cudaMemcpy(dst.block_values(),
+                                  src.bv.data(),
+                                  sizeof(Eigen::Matrix3d) * nnz,
+                                  cudaMemcpyHostToDevice));
+    }
+
+    dst.h_unique_key_number = static_cast<int>(nnz);
+}
+}  // namespace
+
 int main(int argc, char** argv)
 {
     argparse::ArgumentParser program("gipc");
     program.add_argument("-j", "--json");
     program.add_argument("--sort").help(
         "offline metis sort mode: --sort <input_dir> --output <output_dir>");
+    program.add_argument("--A").help("Solve provided linear system: path to MatrixMarket A (coordinate, real)");
+    program.add_argument("--b").help("Solve provided linear system: path to MatrixMarket b (array, real, Mx1)");
     program.add_argument("-o", "--output").required();
     try
     {
@@ -768,6 +1043,48 @@ int main(int argc, char** argv)
     ipc.computeXTilta(d_tetMesh, 1);
 
     ipc.create_LinearSystem(d_tetMesh);
+
+    const bool has_A = program.is_used("--A");
+    const bool has_b = program.is_used("--b");
+    if(has_A || has_b)
+    {
+        if(!(has_A && has_b))
+        {
+            std::cerr << "When solving a provided linear system, both --A and --b are required.\n";
+            return 1;
+        }
+
+        const fs::path A_path = program.get<std::string>("--A");
+        const fs::path b_path = program.get<std::string>("--b");
+
+        const auto A = read_mm_coordinate_real(A_path);
+        if(A.M != A.N)
+        {
+            std::cerr << "A must be square.\n";
+            return 1;
+        }
+
+        const auto b = read_mm_array_vector_mx1(b_path);
+
+        const int expected_M = ipc.gipc_global_triplet.block_rows() * 3;
+        if(A.M != expected_M)
+        {
+            std::cerr << "Loaded A has M=" << A.M << " but configured system expects M=" << expected_M << "\n";
+            return 1;
+        }
+        if(static_cast<int>(b.size()) != expected_M)
+        {
+            std::cerr << "Loaded b has size=" << b.size() << " but expected M=" << expected_M << "\n";
+            return 1;
+        }
+
+        const auto blocks = to_upper_triangle_block_triplets(A);
+        upload_triplets_to_device(ipc.gipc_global_triplet, blocks);
+
+        const auto iter = ipc.m_global_linear_system->solve_loaded_system(b);
+        std::cout << "Loaded linear system solved. Iterations: " << iter << std::endl;
+        return 0;
+    }
 
     fs::create_directories(output_dir);
 

@@ -9,12 +9,12 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <numeric>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
 
-extern "C"
-{
+extern "C" {
 #include <mmio.h>
 }
 
@@ -48,7 +48,7 @@ void GlobalLinearSystem::export_matrix_market_files(int frame, const std::string
         throw std::runtime_error("GlobalLinearSystem: gipc_global_triplet is null");
     }
 
-    namespace fs = std::filesystem;
+    namespace fs            = std::filesystem;
     const fs::path base_dir = fs::path(output_dir) / "linear_system";
     fs::create_directories(base_dir);
 
@@ -72,9 +72,9 @@ void GlobalLinearSystem::export_matrix_market_files(int frame, const std::string
     }
 
     // Copy unique block triplets for A
-    const int block_nnz = gipc_global_triplet->h_unique_key_number;
-    std::vector<int>           br(block_nnz);
-    std::vector<int>           bc(block_nnz);
+    const int        block_nnz = gipc_global_triplet->h_unique_key_number;
+    std::vector<int> br(block_nnz);
+    std::vector<int> bc(block_nnz);
     std::vector<Eigen::Matrix3d> bv(block_nnz);
 
     if(block_nnz > 0)
@@ -125,7 +125,7 @@ void GlobalLinearSystem::export_matrix_market_files(int frame, const std::string
 
     // Write A as MatrixMarket coordinate (general), expanding symmetric blocks to full matrix.
     {
-        int64_t       nnz_full = 0;
+        int64_t nnz_full = 0;
         for(int k = 0; k < block_nnz; ++k)
         {
             if(br[k] == bc[k])
@@ -166,11 +166,11 @@ void GlobalLinearSystem::export_matrix_market_files(int frame, const std::string
 
         for(int k = 0; k < block_nnz; ++k)
         {
-            const int bi = br[k];
-            const int bj = bc[k];
-            const int r0 = bi * BlockSize;
-            const int c0 = bj * BlockSize;
-            const auto& B = bv[k];
+            const int   bi = br[k];
+            const int   bj = bc[k];
+            const int   r0 = bi * BlockSize;
+            const int   c0 = bj * BlockSize;
+            const auto& B  = bv[k];
 
             for(int i = 0; i < BlockSize; ++i)
             {
@@ -339,6 +339,91 @@ gipc::SizeT GlobalLinearSystem::solve_linear_system()
     MUDA_ASSERT(m_solver, "Solver is null, call create_solver() to setup a solver.");
     auto iter = m_solver->solve(m_x, m_b);
     distribute_solution();
+    return iter;
+}
+
+gipc::SizeT GlobalLinearSystem::solve_loaded_system(const std::vector<Float>& b_host)
+{
+    if(!gipc_global_triplet)
+    {
+        throw std::runtime_error("GlobalLinearSystem: gipc_global_triplet is null");
+    }
+
+    // Set up subsystem dof layout (matches build_linear_system), but skip assembling A/b from subsystems.
+    auto gradient_provider_count = m_inner_subsystems.size();
+
+    m_rhs_count_per_subsystem.resize(gradient_provider_count);
+    m_rhs_offset_per_subsystem.resize(gradient_provider_count);
+
+    for(auto& subsystem : m_subsystems)
+    {
+        subsystem->report_subsystem_info();
+    }
+
+    for(auto& gp : m_inner_subsystems)
+    {
+        auto i                       = gp->gid();
+        m_rhs_count_per_subsystem[i] = gp->right_hand_side_dof();
+    }
+
+    if(m_rhs_count_per_subsystem.empty())
+    {
+        throw std::runtime_error("GlobalLinearSystem: no subsystems configured");
+    }
+
+    std::exclusive_scan(m_rhs_count_per_subsystem.begin(),
+                        m_rhs_count_per_subsystem.end(),
+                        m_rhs_offset_per_subsystem.begin(),
+                        SizeT{0});
+
+    for(auto& gp : m_inner_subsystems)
+    {
+        auto i = gp->gid();
+        gp->dof_offset(m_rhs_offset_per_subsystem[i]);
+    }
+
+    auto total_rhs_count =
+        m_rhs_offset_per_subsystem.back() + m_rhs_count_per_subsystem.back();
+
+    if(static_cast<size_t>(total_rhs_count) != b_host.size())
+    {
+        std::ostringstream oss;
+        oss << "GlobalLinearSystem: loaded b size mismatch, expected "
+            << total_rhs_count << " got " << b_host.size();
+        throw std::runtime_error(oss.str());
+    }
+
+    if(total_rhs_count == 0)
+    {
+        return 0;
+    }
+
+    m_b.resize(total_rhs_count);
+    m_x.resize(total_rhs_count);
+
+    // Copy b to device
+    m_b.buffer_view().copy_from(b_host.data());
+
+    // Assemble preconditioners on the already-loaded matrix triplets.
+    int start_preconditioner_id = 0;
+    if(m_local_preconditioners.size() && m_local_preconditioners[0]->preconditioner_id == 0)
+    {
+        m_local_preconditioners[0]->assemble();
+        start_preconditioner_id++;
+    }
+
+    if(m_global_preconditioner)
+        m_global_preconditioner->do_assemble(*gipc_global_triplet);
+
+    for(int i = start_preconditioner_id;
+        i < static_cast<int>(m_local_preconditioners.size());
+        i++)
+    {
+        m_local_preconditioners[i]->assemble();
+    }
+
+    MUDA_ASSERT(m_solver, "Solver is null, call create_solver() to setup a solver.");
+    auto iter = m_solver->solve(m_x, m_b);
     return iter;
 }
 

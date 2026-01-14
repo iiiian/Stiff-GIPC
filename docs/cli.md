@@ -5,6 +5,7 @@
 - `-o, --output <dir>`: required in both modes.
 - Offline sort mode: `--sort <input_dir>` (ignores `--json` if also provided).
 - Run mode: `-j, --json <scene.json>` (required unless `--sort` is used).
+- Linear system solve mode: `--A <A.mtx> --b <b.mtx>` (requires `--json`, solves once and exits).
 
 ## Offline sort mode
 
@@ -22,6 +23,19 @@ outputs (per input mesh):
 
 ```bash
 ./build/debug/gipc -j examples/free_fall.json -o output/free_fall_cli
+```
+
+## Solve a provided linear system (Ax=b)
+
+When invoked with both `--A` and `--b`, the program loads the scene JSON (all fields required, same as run mode) to configure PCG tolerances and preconditioner settings, then solves the provided linear system once and exits.
+
+Requirements:
+- `--A`: MatrixMarket **coordinate** matrix, **real**, square, with `M % 3 == 0`.
+- `--b`: MatrixMarket **array** matrix, **real**, shape `(M x 1)` (required).
+
+Example:
+```bash
+./build/debug/gipc -j examples/free_fall.json -o output/solve_once --A output/linear_system/frame_00000_A.mtx --b output/linear_system/frame_00000_b.mtx
 ```
 
 Outputs:

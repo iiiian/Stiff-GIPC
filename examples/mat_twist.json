@@ -30,10 +30,10 @@
     "armijo_alpha_min": 1e-12
   },
   "simulation": {
-    "frames": 1500,
+    "frames": 15,
     "preconditioner_type": 1,
     "write_obj_frames": true,
-    "export_linear_system_frames": []
+    "export_linear_system_frames": [10]
   },
   "ground": {
     "enabled": false,

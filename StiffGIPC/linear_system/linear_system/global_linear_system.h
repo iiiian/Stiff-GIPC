@@ -9,6 +9,7 @@
 #include <gipc/utils/json.h>
 
 #include <string>
+#include <vector>
 
 namespace gipc
 {
@@ -30,6 +31,7 @@ class GlobalLinearSystem
 
     void clear_matrix_market_export_request();
     void request_matrix_market_export(int frame, std::string output_dir);
+    gipc::SizeT solve_loaded_system(const std::vector<Float>& b_host);
 
     template <typename T, typename... Args>
     T& create(Args&&... args)
