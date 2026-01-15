@@ -10,3 +10,5 @@ output
 test
 mat_out
 octopus_out
+tools/check_spd.py
+examples/mat_twist.json
