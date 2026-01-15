@@ -223,6 +223,7 @@ Top-level:
 - **Output:** written under `<output_dir>/linear_system/` as:
   - `frame_XXXXX_A.mtx` (coordinate, real, general; full matrix)
   - `frame_XXXXX_b.mtx` (array, real, general; `M x 1`)
+  - `frame_XXXXX_collision_dof.txt` (number of DOFs involved in contact)
 - **Effect:** Relative Newton termination threshold based on `||dx||_inf`: stop when `||dx||_inf < rel_xdelta_tol * ||dx0||_inf`, where `dx0` is the Newton direction from the first iteration.
 
 Newton stops when **either** condition is satisfied.

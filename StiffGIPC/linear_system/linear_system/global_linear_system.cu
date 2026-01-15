@@ -10,6 +10,7 @@
 #include <iostream>
 #include <limits>
 #include <numeric>
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
@@ -39,6 +40,57 @@ static std::string format_frame_basename(int frame)
     std::ostringstream oss;
     oss << "frame_" << std::setw(5) << std::setfill('0') << frame;
     return oss.str();
+}
+
+static void export_collision_dof_file(const GIPCTripletMatrix& triplets,
+                                      int                      frame,
+                                      const std::string&       output_dir)
+{
+    namespace fs            = std::filesystem;
+    const fs::path base_dir = fs::path(output_dir) / "linear_system";
+    fs::create_directories(base_dir);
+
+    const fs::path dof_path =
+        base_dir / (format_frame_basename(frame) + "_collision_dof.txt");
+
+    const int     triplet_count = triplets.global_collision_triplet_offset;
+    std::ofstream out(dof_path);
+    if(!out)
+    {
+        throw std::runtime_error("Failed to open collision DOF export file: "
+                                 + dof_path.string());
+    }
+
+    if(triplet_count <= 0)
+    {
+        out << "0\n";
+        return;
+    }
+
+    CUDA_SAFE_CALL(cudaDeviceSynchronize());
+
+    std::vector<int> rows(triplet_count);
+    std::vector<int> cols(triplet_count);
+    CUDA_SAFE_CALL(cudaMemcpy(rows.data(),
+                              triplets.block_row_indices(),
+                              sizeof(int) * triplet_count,
+                              cudaMemcpyDeviceToHost));
+    CUDA_SAFE_CALL(cudaMemcpy(cols.data(),
+                              triplets.block_col_indices(),
+                              sizeof(int) * triplet_count,
+                              cudaMemcpyDeviceToHost));
+
+    std::vector<int> blocks;
+    blocks.reserve(static_cast<size_t>(triplet_count) * 2);
+    for(int i = 0; i < triplet_count; ++i)
+    {
+        blocks.push_back(rows[i]);
+        blocks.push_back(cols[i]);
+    }
+    std::sort(blocks.begin(), blocks.end());
+    blocks.erase(std::unique(blocks.begin(), blocks.end()), blocks.end());
+
+    out << (static_cast<int>(blocks.size()) * GlobalLinearSystem::BlockSize) << "\n";
 }
 
 void GlobalLinearSystem::export_matrix_market_files(int frame, const std::string& output_dir)
@@ -261,6 +313,13 @@ bool GlobalLinearSystem::build_linear_system()
         m_local_preconditioners[0]->assemble();
         start_preconditioner_id++;
     }
+
+    if(m_mm_export.pending)
+    {
+        export_collision_dof_file(
+            *gipc_global_triplet, m_mm_export.frame, m_mm_export.output_dir);
+    }
+
     convert_new();
 
     if(m_global_preconditioner)

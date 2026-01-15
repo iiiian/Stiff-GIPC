@@ -8507,7 +8507,6 @@ void GIPC::MALLOC_DEVICE_MEM()
 
 void GIPC::initBVH(int* _btype, int* _bodyId)
 {
-
     bvh_e.init(_bodyId,
                _btype,
                _vertexes,
