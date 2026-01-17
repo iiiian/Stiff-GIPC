@@ -29,8 +29,8 @@ class GlobalLinearSystem
 
     static constexpr int BlockSize = 3;
 
-    void clear_matrix_market_export_request();
-    void request_matrix_market_export(int frame, std::string output_dir);
+    void        disable_matrix_market_export();
+    void        enable_matrix_market_export(int frame, std::string output_dir);
     gipc::SizeT solve_loaded_system(const std::vector<Float>& b_host);
 
     template <typename T, typename... Args>
@@ -94,8 +94,9 @@ class GlobalLinearSystem
 
     struct MatrixMarketExportRequest
     {
-        bool        pending = false;
-        int         frame   = -1;
+        bool        pending             = false;
+        int         newton_step_counter = 0;
+        int         frame               = -1;
         std::string output_dir;
     };
 
@@ -107,6 +108,11 @@ class GlobalLinearSystem
     void apply_preconditioner(muda::DenseVectorView<Float>  z,
                               muda::CDenseVectorView<Float> r);
 
+
+    std::string format_frame_basename();
+    void        export_collision_dof_file(const GIPCTripletMatrix& triplets,
+                                          int                      frame,
+                                          const std::string&       output_dir);
     void export_matrix_market_files(int frame, const std::string& output_dir);
     void convert_new();
 

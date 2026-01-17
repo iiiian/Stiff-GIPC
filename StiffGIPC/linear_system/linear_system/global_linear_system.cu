@@ -21,28 +21,30 @@ extern "C" {
 
 namespace gipc
 {
-void GlobalLinearSystem::clear_matrix_market_export_request()
+void GlobalLinearSystem::disable_matrix_market_export()
 {
-    m_mm_export.pending = false;
-    m_mm_export.frame   = -1;
+    m_mm_export.pending             = false;
+    m_mm_export.newton_step_counter = 0;
+    m_mm_export.frame               = -1;
     m_mm_export.output_dir.clear();
 }
 
-void GlobalLinearSystem::request_matrix_market_export(int frame, std::string output_dir)
+void GlobalLinearSystem::enable_matrix_market_export(int frame, std::string output_dir)
 {
-    m_mm_export.pending    = true;
-    m_mm_export.frame      = frame;
-    m_mm_export.output_dir = std::move(output_dir);
+    m_mm_export.pending             = true;
+    m_mm_export.newton_step_counter = 0;
+    m_mm_export.frame               = frame;
+    m_mm_export.output_dir          = std::move(output_dir);
 }
 
-static std::string format_frame_basename(int frame)
+std::string GlobalLinearSystem::format_frame_basename()
 {
     std::ostringstream oss;
-    oss << "frame_" << std::setw(5) << std::setfill('0') << frame;
+    oss << "frame_" << std::setw(5) << std::setfill('0') << m_mm_export.frame << "_ns_" << m_mm_export.newton_step_counter;
     return oss.str();
 }
 
-static void export_collision_dof_file(const GIPCTripletMatrix& triplets,
+void GlobalLinearSystem::export_collision_dof_file(const GIPCTripletMatrix& triplets,
                                       int                      frame,
                                       const std::string&       output_dir)
 {
@@ -51,7 +53,7 @@ static void export_collision_dof_file(const GIPCTripletMatrix& triplets,
     fs::create_directories(base_dir);
 
     const fs::path dof_path =
-        base_dir / (format_frame_basename(frame) + "_collision_dof.txt");
+        base_dir / (format_frame_basename() + "_collision_dof.txt");
 
     const int     triplet_count = triplets.global_collision_triplet_offset;
     std::ofstream out(dof_path);
@@ -104,8 +106,8 @@ void GlobalLinearSystem::export_matrix_market_files(int frame, const std::string
     const fs::path base_dir = fs::path(output_dir) / "linear_system";
     fs::create_directories(base_dir);
 
-    const fs::path A_path = base_dir / (format_frame_basename(frame) + "_A.mtx");
-    const fs::path b_path = base_dir / (format_frame_basename(frame) + "_b.mtx");
+    const fs::path A_path = base_dir / (format_frame_basename() + "_A.mtx");
+    const fs::path b_path = base_dir / (format_frame_basename() + "_b.mtx");
 
     const int block_rows = gipc_global_triplet->block_rows();
     const int block_cols = gipc_global_triplet->block_cols();
@@ -386,18 +388,19 @@ gipc::SizeT GlobalLinearSystem::solve_linear_system()
     if(!success)
     {
         // Clear any pending export request to avoid exporting stale frame labels later.
-        clear_matrix_market_export_request();
+        disable_matrix_market_export();
         return 0;
     }
 
     if(m_mm_export.pending)
     {
         export_matrix_market_files(m_mm_export.frame, m_mm_export.output_dir);
-        clear_matrix_market_export_request();
     }
     MUDA_ASSERT(m_solver, "Solver is null, call create_solver() to setup a solver.");
     auto iter = m_solver->solve(m_x, m_b);
     distribute_solution();
+
+    m_mm_export.newton_step_counter++;
     return iter;
 }
 

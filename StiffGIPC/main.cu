@@ -1102,13 +1102,13 @@ int main(int argc, char** argv)
     {
         if(ipc.m_global_linear_system)
         {
-            ipc.m_global_linear_system->clear_matrix_market_export_request();
+            ipc.m_global_linear_system->disable_matrix_market_export();
             if(std::find(export_linear_system_frames.begin(),
                          export_linear_system_frames.end(),
                          frame)
                != export_linear_system_frames.end())
             {
-                ipc.m_global_linear_system->request_matrix_market_export(frame,
+                ipc.m_global_linear_system->enable_matrix_market_export(frame,
                                                                          output_dir);
             }
         }
