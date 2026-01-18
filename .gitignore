@@ -12,3 +12,11 @@ mat_out
 octopus_out
 tools/check_spd.py
 examples/mat_twist.json
+mat_out_mid
+mat_out_soft
+oct_out_detailed
+oct_out_single
+oct_out_tight
+packing
+log.txt
+tt.usd
