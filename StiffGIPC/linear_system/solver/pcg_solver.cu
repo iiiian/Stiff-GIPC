@@ -2,6 +2,9 @@
 #include <gipc/utils/timer.h>
 #include <gipc/statistics.h>
 #include <cuda_tools/cuda_tools.h>
+#include <chrono>
+#include <cmath>
+#include <iomanip>
 #include <iostream>
 
 
@@ -201,8 +204,23 @@ SizeT PCGSolver::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
                                                      r.size());
     }
 
+    {
+        const Float init_precond_residual = std::sqrt(rz0);
+        const Float init_residual =
+            m_config.use_preconditioned_residual_norm ? init_precond_residual : std::sqrt(rr0);
+        std::cout << std::fixed << std::setprecision(20)
+                  << "[PCG] iter=0 residual=" << init_residual
+                  << " precond_residual=" << init_precond_residual << " time_ms=0\n";
+    }
+
+    bool  converged     = false;
+    Float last_residual  = m_config.use_preconditioned_residual_norm ? std::sqrt(rz0) : std::sqrt(rr0);
+    Float last_precond   = std::sqrt(rz0);
+
     for(k = 1; k < max_iter; ++k)
     {
+        const auto iter_start = std::chrono::high_resolution_clock::now();
+
         {
             //Timer timer{"spmv"};
             // Ap = A * p
@@ -257,31 +275,42 @@ SizeT PCGSolver::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
                                                             z.size());
         }
 
-        if(k % 10 == 0)
-        {
-            const Float rel2 = m_config.rel_tol * m_config.rel_tol;
-            const Float abs2 = m_config.abs_tol * m_config.abs_tol;
+        const Float rel2      = m_config.rel_tol * m_config.rel_tol;
+        const Float abs2      = m_config.abs_tol * m_config.abs_tol;
 
-            if(m_config.use_preconditioned_residual_norm)
+        Float rr = 0;
+        if(m_config.use_preconditioned_residual_norm)
+        {
+            if(rz_new <= rel2 * rz0 || rz_new <= abs2)
             {
-                if(rz_new <= rel2 * rz0 || rz_new <= abs2)
-                {
-                    break;
-                }
-            }
-            else
-            {
-                const Float rr =
-                    My_PCG_General_v_v_Reduction_Algorithm(Ap.buffer_view().data(),
-                                                           r.buffer_view().data(),
-                                                           r.buffer_view().data(),
-                                                           r.size());
-                if(rr <= rel2 * rr0 || rr <= abs2)
-                {
-                    break;
-                }
+                converged = true;
             }
         }
+        else
+        {
+            rr = My_PCG_General_v_v_Reduction_Algorithm(Ap.buffer_view().data(),
+                                                        r.buffer_view().data(),
+                                                        r.buffer_view().data(),
+                                                        r.size());
+            if(rr <= rel2 * rr0 || rr <= abs2)
+            {
+                converged = true;
+            }
+        }
+
+        last_precond  = std::sqrt(rz_new);
+        last_residual = m_config.use_preconditioned_residual_norm ? last_precond : std::sqrt(rr);
+
+        if(converged)
+        {
+            const auto iter_end = std::chrono::high_resolution_clock::now();
+            const auto dt = std::chrono::duration<double, std::milli>(iter_end - iter_start);
+            std::cout << "[PCG] iter=" << k << " residual=" << last_residual
+                      << " precond_residual=" << last_precond
+                      << " time_ms=" << dt.count() << "\n";
+            break;
+        }
+
         beta = rz_new / rz;
 
         {
@@ -297,9 +326,23 @@ SizeT PCGSolver::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
         }
 
         rz = rz_new;
+
+        const auto iter_end = std::chrono::high_resolution_clock::now();
+        const auto dt = std::chrono::duration<double, std::milli>(iter_end - iter_start);
+        std::cout << "[PCG] iter=" << k << " residual=" << last_residual
+                  << " precond_residual=" << last_precond
+                  << " time_ms=" << dt.count() << "\n";
     }
 
-    std::cout << "PCG: iter " << k << std::endl;
+    if(converged)
+    {
+        std::cout << "PCG: converged iter " << k << " residual=" << last_residual << std::endl;
+    }
+    else
+    {
+        std::cout << "PCG: stopped iter " << k << " (max_iter=" << max_iter
+                  << ") residual=" << last_residual << std::endl;
+    }
     return k;
 }
 
